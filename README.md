@@ -3,7 +3,7 @@
 # UGLA Gantt
 
 An open-source solution for rendering Gantt charts with maximum customization out of the box
-The repository is managed by LLC MOI Tech, [ugla.ua](https://ugla.ua)
+The repository is managed by LLC MOI Tech, [ugla.ua](https://ugla.ua/en/)
 
 
 ## Documentation
@@ -13,5 +13,5 @@ The repository is managed by LLC MOI Tech, [ugla.ua](https://ugla.ua)
 
 ## Authors
 
-- [UGLA (LLC MOI Tech)](https://ugla.ua)
+- [UGLA (LLC MOI Tech)](https://ugla.ua/en/)
 
