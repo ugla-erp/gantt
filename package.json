@@ -7,7 +7,7 @@
     "url": "git+https://github.com/ugla-erp/gantt.git"
   },
   "author": "LLC MOI Tech and Community",
-  "license": "GPL-3.0",
+  "license": "GPL-3.0-only",
   "bugs": {
     "url": "https://github.com/ugla-erp/gantt/issues"
   },
@@ -35,9 +35,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "docs": "npx jsdoc src/index.js -d docs"
+    "docs": "npx jsdoc src/index.js -d docs -c jsdoc.json"
   },
   "devDependencies": {
+    "clean-jsdoc-theme": "^4.2.17",
     "jsdoc": "~4.0.2",
     "vite": "^5.1.6"
   }
