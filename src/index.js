@@ -1,5 +1,9 @@
-import "./typedef";
+import UGLAGanttOptions from "./options";
 
+/**
+ * @type {UGLAGantt}
+ * @property {UGLAGanttOptions} options
+ */
 class UGLAGantt
 {
   /**
