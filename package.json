@@ -1,0 +1,40 @@
+{
+  "name": "ugla-gantt",
+  "private": true,
+  "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ugla-erp/gantt.git"
+  },
+  "author": "LLC MOI Tech and Community",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/ugla-erp/gantt/issues"
+  },
+  "homepage": "https://github.com/ugla-erp/gantt#readme",
+  "keywords": [
+    "gantt",
+    "js",
+    "javascript",
+    "library",
+    "open-source"
+  ],
+  "type": "module",
+  "files": ["dist"],
+  "main": "./dist/ugla-gantt.umd.cjs",
+  "module": "./dist/ugla-gantt.js",
+  "exports": {
+    ".": {
+      "import": "./dist/ugla-gantt.js",
+      "require": "./dist/ugla-gantt.umd.cjs"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.1.6"
+  }
+}
