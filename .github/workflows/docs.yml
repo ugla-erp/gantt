@@ -33,6 +33,12 @@ jobs:
       - run: npm ci
       - run: npm run docs
 
+      - name: get-npm-version
+        id: package-version
+        uses: martinbeentjes/npm-get-version-action@v1.3.1
+
+      - run: echo '<meta http-equiv="refresh" content="0; url=https://docs.gantt.ugla.ua/${{ steps.package-version.outputs.current-version }}">' > docs/ugla-gantt/index.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
