@@ -1,8 +1,19 @@
-import UGLAGanttOptions from "./options";
+/**
+ * @typedef {Object} UGLAGanttOptions
+ * @property {Object} theming
+ * @property {Object} theming.connectingLines
+ * @property {String} [theming.connectingLines.class=`gantt__connecting_line`]
+ */
+const defaultOptions = {
+  theming: {
+    connectingLines: {
+      class: `gantt__connecting_line`,
+    },
+  },
+};
 
 /**
  * @type {UGLAGantt}
- * @property {UGLAGanttOptions} options
  * @hideconstructor
  */
 class UGLAGantt
@@ -25,12 +36,27 @@ class UGLAGantt
       options = {};
     }
 
-    const instance = new this(false);
+    let instance = this.#findExistingInstance(container);
 
-    instance.container = container;
+    if(instance === null)
+    {
+      instance = new this(false);
+  
+      instance.container = container;
+    }
+
     instance.options = options;
 
     return instance;
+  }
+
+  /**
+   * @param {Element} container 
+   * @private
+   */
+  static #findExistingInstance(container)
+  {
+
   }
 
   /**
@@ -51,6 +77,14 @@ class UGLAGantt
     {
       console.warn(`You should not use the constructor directly, unless you know what you are doing. It's better to use ${this.constructor.name}.init() instead.`)
     }
+  }
+
+  /**
+   * @private
+   */
+  loadOptions()
+  {
+    
   }
 }
 
