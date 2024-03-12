@@ -35,7 +35,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "docs": "npx jsdoc src/index.js -d docs -c jsdoc.json"
+    "docs": "npx jsdoc src/index.js -d docs -c jsdoc.json -P package.json"
   },
   "devDependencies": {
     "clean-jsdoc-theme": "^4.2.17",
