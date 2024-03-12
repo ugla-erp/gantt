@@ -13,6 +13,7 @@ const defaultOptions = {
 };
 
 /**
+ * <code>console.log(`I'm a little avocado!`)</code>
  * @type {UGLAGantt}
  * @hideconstructor
  */
