@@ -41,10 +41,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           url=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.html_url')
-          touch ${{ vars.DOCS_FULL_PATH }}/index.html
-          sed -i '19i\
-            <meta http-equiv="refresh" content="0;URL='"$url"${{ steps.package-version.outputs.current-version }}/'">
-          ' ${{ vars.DOCS_FULL_PATH }}/index.html
+          echo '<meta http-equiv="refresh" content="0; URL='${url}/${{ steps.package-version.outputs.current-version }}'">' > ${{ vars.DOCS_FULL_PATH }}/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
