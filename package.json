@@ -1,7 +1,7 @@
 {
   "name": "ugla-gantt",
   "private": false,
-  "version": "0.0.1",
+  "version": "0.0.3",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ugla-erp/gantt.git"
