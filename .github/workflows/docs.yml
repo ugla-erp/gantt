@@ -79,6 +79,6 @@ jobs:
       #   with:
       #     path: ./docs/ugla-gantt/${{ steps.package-version.outputs.current-version }}
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      # - name: Deploy to GitHub Pages
+      #   id: deployment
+      #   uses: actions/deploy-pages@v4

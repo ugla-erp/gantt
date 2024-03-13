@@ -2,6 +2,7 @@
  * @typedef {Object} UGLAGanttOptions
  * @property {Object} theming
  * @property {Object} theming.connectingLines
+ * @property {Object} theming.thickness
  * @property {String} [theming.connectingLines.class=`gantt__connecting_line`]
  */
 const defaultOptions = {
