@@ -58,27 +58,27 @@ jobs:
       - run: npm ci
       - run: npm run docs
 
-      - run: pwd
-      - run: ls .
-      - run: ls ./docs
-      - run: ls ./docs/ugla-gantt
+      # - run: pwd
+      # - run: ls .
+      # - run: ls ./docs
+      # - run: ls ./docs/ugla-gantt
 
-      - name: Deploy Docs
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ github.token }}
-          publish_dir: ./docs/ugla-gantt
-          cname: docs.gantt.ugla.ua
-          # destination_dir: ${{ steps.package-version.outputs.current-version }}
-
-      # - name: Setup Pages
-      #   uses: actions/configure-pages@v4
-
-      # - name: Upload artifact
-      #   uses: actions/upload-pages-artifact@v3
+      # - name: Deploy Docs
+      #   uses: peaceiris/actions-gh-pages@v3
       #   with:
-      #     path: ./docs/ugla-gantt
+      #     github_token: ${{ github.token }}
+      #     publish_dir: ./docs/ugla-gantt
+      #     cname: docs.gantt.ugla.ua
+      #     destination_dir: ${{ steps.package-version.outputs.current-version }}
 
-      # - name: Deploy to GitHub Pages
-      #   id: deployment
-      #   uses: actions/deploy-pages@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs/ugla-gantt
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
