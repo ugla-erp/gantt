@@ -1,13 +1,5 @@
 import { merge } from "lodash";
-
-/**
- * @typedef {Object} ChartOptions
- * @property {String} [attributePrefix=`data-ugla-gantt`]
- * @property {Object} theming
- * @property {Object} theming.connectingLines Configuration relating to the lines that are drawn onto the canvas, connecting {@link ChartItem} instances
- * @property {Number} [theming.connectingLines.thickness=2]
- * @property {String} [theming.connectingLines.color=`#000000`]
- */
+import ChartEvent from "./event";
 
 /**
  * @type {Chart}
@@ -49,6 +41,7 @@ class Chart
 
       container.UGLAGanttInstance = instance;
       instance.setAttribute(`container`, ``);
+      instance.render();
     }
     else if(options !== undefined)
     {
@@ -138,29 +131,29 @@ class Chart
    */
   render()
   {
-    return new Promise((resolve, reject) => {
-      this.renderCanvas()
-        .then(() => {
-          resolve(this);
-          this.trigger(new ChartEvent(ChartEvent.RENDERED, { bubbles: true }));
-        })
-        .catch(err => {
-          console.error(err);
-          reject(err);
-        });
+    return new Promise(async (resolve, reject) => {
+      try
+      {
+        await this.renderCanvas();
+        resolve(this);
+        this.trigger(new ChartEvent(ChartEvent.RENDERED, { instance: this }));
+      }
+      catch(err)
+      {
+        console.error(err);
+        reject(err);
+      }
     });
   }
 
   /**
    * @private
-   * @see {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise|Promise}
-   * @returns {Promise<void>}
+   * @async
+   * @returns {void}
    */
-  renderCanvas()
+  async renderCanvas()
   {
-    return new Promise((resolve, reject) => {
 
-    });
   }
 
   /**
@@ -173,44 +166,4 @@ class Chart
   }
 }
 
-/**
- * @type {ChartEvent}
- * @hideconstructor
- */
-class ChartEvent
-{
-  /**
-   * 
-   * @param {String} type 
-   * @param {Object|undefined} detail
-   * @param {EventInit|undefined} options 
-   */
-  constructor(type, detail, options)
-  {
-    options.detail = detail ?? {};
-    return new CustomEvent(type, options);
-  }
-
-  /**
-   * @type {String}
-   * @const
-   * @default `uglagantt:rendered`
-   */
-  static RENDERED = `uglagantt:rendered`;
-
-  /**
-   * @type {String}
-   * @const
-   * @default `uglagantt:startlinemove`
-   */
-  static LINE_MOVE_START = `uglagantt:startlinemove`;
-
-  /**
-   * @type {String}
-   * @const
-   * @default `uglagantt:endlinemove`
-   */
-  static LINE_MOVE_END = `uglagantt:endlinemove`;
-}
-
-export { Chart };
+export default { Chart, ChartEvent };
