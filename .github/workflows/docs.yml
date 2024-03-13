@@ -58,6 +58,10 @@ jobs:
       - run: npm ci
       - run: npm run docs
 
+      - run: ls .
+      - run: ls ./docs
+      - run: ls ./docs/ugla-gantt
+
       - name: Deploy Docs
         uses: peaceiris/actions-gh-pages@v3
         with:
