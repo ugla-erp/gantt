@@ -58,6 +58,7 @@ jobs:
       - run: npm ci
       - run: npm run docs
 
+      - run: pwd
       - run: ls .
       - run: ls ./docs
       - run: ls ./docs/ugla-gantt
