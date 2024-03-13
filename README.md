@@ -2,7 +2,8 @@
 
 # UGLA Gantt
 
-An open-source solution for rendering Gantt charts with maximum customization out of the box
+An open-source solution for rendering Gantt charts
+
 The repository is managed by LLC MOI Tech, [ugla.ua](https://ugla.ua/en/)
 
 

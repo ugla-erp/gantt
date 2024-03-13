@@ -1,3 +1,3 @@
-import { UGLAGantt } from "./src/index.js";
+import { Chart } from "./src/index.js";
 
-UGLAGantt.init(document.getElementById(`container`));
+Chart.get(document.getElementById(`container`));
