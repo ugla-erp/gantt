@@ -47,13 +47,13 @@ jobs:
       #     github_token: ${{ github.token }}
       #     publish_dir: ./docs
 
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+      # - name: Cache dependencies
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: .
+      #     key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-node-
 
       - run: npm ci
       - run: npm run docs
