@@ -54,8 +54,8 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ github.token }}
-          publish_dir: ./docs/ugla-gantt/${{ steps.package-version.outputs.current-version }}
-          destination_dir: ${{ steps.package-version.outputs.current-version }}
+          publish_dir: ./docs/ugla-gantt
+          # destination_dir: ${{ steps.package-version.outputs.current-version }}
 
       # - name: Setup Pages
       #   uses: actions/configure-pages@v4
