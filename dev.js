@@ -1,5 +1,5 @@
-import { Chart } from "./src/index.js";
+import { Chart } from "./src";
 
 const container = document.getElementById(`container`);
 
-Chart.get(container);
+Chart.get(container, { mode: `quarters` });

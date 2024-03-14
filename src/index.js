@@ -1,5 +1,8 @@
+import "./typedefs.js";
 import { merge } from "lodash";
 import ChartEvent from "./event";
+import ChartMode from "./mode";
+import { DOCS_FULL_URL } from "./utils.js";
 
 /**
  * @type {Chart}
@@ -38,6 +41,7 @@ class Chart
 
       instance.container = container;
       instance.options = options;
+      instance.processOptions();
 
       container.UGLAGanttInstance = instance;
       instance.setAttribute(`container`, ``);
@@ -46,9 +50,8 @@ class Chart
     else if(options !== undefined)
     {
       instance.options = options;
+      instance.processOptions();
     }
-
-    console.log(instance)
 
     return instance;
   }
@@ -90,6 +93,14 @@ class Chart
    */
   static defaultOptions = {
     attributePrefix: `data-gantt`,
+    mode: `days`,
+    columns: {
+      header: {
+        template: `{formatted}`,
+      },
+    },
+    locale: `en-gb`,
+    timezone: `UTC`,
     theming: {
       connectingLines: {
         thickness: 2,
@@ -123,6 +134,27 @@ class Chart
   }
 
   /**
+   * @private
+   */
+  processOptions()
+  {
+    /**
+     * Unpacking ChartMode preset by string key
+     */
+    if(typeof this.options.mode === `string`)
+    {
+      if(ChartMode.DEFAULTS[this.options.mode] !== undefined)
+      {
+        this.options.mode = ChartMode.DEFAULTS[this.options.mode];
+      }
+      else
+      {
+        throw new Error(`Undefined mode preset '${this.options.mode}'. If you want to use a custom interval and/or format, pass an instance of ChartMode. See ${DOCS_FULL_URL}/ChartMode.html`);
+      }
+    }
+  }
+
+  /**
    * <p>Called automatically, when initializing a container for the first time through {@link Chart.get}</p>
    * <p>Will trigger {@link ChartEvent#RENDERED} immediately <b>AFTER</b> resolving</p>
    * 
@@ -148,12 +180,13 @@ class Chart
 
   /**
    * @private
-   * @async
-   * @returns {void}
+   * @returns {Promise<void>}
    */
-  async renderCanvas()
+  renderCanvas()
   {
+    const promises = [];
 
+    return Promise.allSettled(promises);
   }
 
   /**
@@ -166,4 +199,4 @@ class Chart
   }
 }
 
-export default { Chart, ChartEvent };
+export { Chart, ChartEvent };

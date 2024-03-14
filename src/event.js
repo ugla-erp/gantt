@@ -1,4 +1,3 @@
-
 /**
  * @type {ChartEvent}
  * @hideconstructor
@@ -22,6 +21,7 @@ class ChartEvent
    * @type {String}
    * @const
    * @default `gantt`
+   * @private
    */
   static EVENT_NAMESPACE = `gantt`;
 
