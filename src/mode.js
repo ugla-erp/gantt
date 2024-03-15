@@ -6,15 +6,22 @@ class ChartMode
 {
   /**
    * @type {Object}
-   * @see {@link https://moment.github.io/luxon/api-docs/index.html#durationfromobject}
+   * @see {@link https://moment.github.io/luxon/api-docs/index.html#durationfromobject|Luxon - Duration from object}
    */
   interval;
 
   /**
    * @type {String}
-   * @see {@link https://moment.github.io/luxon/#/formatting?id=table-of-tokens|Table of tokens}
+   * @see {@link https://moment.github.io/luxon/#/formatting?id=table-of-tokens|Luxon - Table of tokens}
    */
   format;
+
+  /**
+   * Format used for indexing columns. If undefined {@link ChartMode#format} will be used for indexing
+   * @type {String|undefined}
+   * @see {@link https://moment.github.io/luxon/#/formatting?id=table-of-tokens|Luxon - Table of tokens}
+   */
+  idxFormat;
 
   /**
    * Available keys:
@@ -27,62 +34,77 @@ class ChartMode
     minutes_5: {
       interval: { minutes: 5 },
       format: `T`,
+      idxFormat: `yyyy-MM-dd T`
     },
     minutes_10: {
       interval: { minutes: 10 },
       format: `T`,
+      idxFormat: `yyyy-MM-dd T`
     },
     minutes_15: {
       interval: { minutes: 15 },
       format: `T`,
+      idxFormat: `yyyy-MM-dd T`
     },
     minutes_30: {
       interval: { minutes: 30 },
       format: `T`,
+      idxFormat: `yyyy-MM-dd T`
     },
     hours: {
       interval: { hours: 1 },
       format: `HH`,
+      idxFormat: `yyyy-MM-dd T`
     },
     hours_3: {
       interval: { hours: 3 },
       format: `HH`,
+      idxFormat: `yyyy-MM-dd T`
     },
     hours_6: {
       interval: { hours: 6 },
       format: `HH`,
+      idxFormat: `yyyy-MM-dd T`
     },
     hours_12: {
       interval: { hours: 12 },
       format: `HH`,
+      idxFormat: `yyyy-MM-dd T`
     },
     days: {
       interval: { days: 1 },
       format: `dd/MM`,
+      idxFormat: `yyyy-MM-dd`
     },
     daysOfTheWeek: {
       interval: { days: 1 },
       format: `EEEE`,
+      idxFormat: `yyyy-MM-dd`
     },
     weeks: {
       interval: { weeks: 1 },
       format: `WW/kkkk`,
+      idxFormat: `yyyy-WW`,
     },
     weeks_2: {
       interval: { weeks: 2 },
       format: `WW/kkkk`,
+      idxFormat: `yyyy-WW`,
     },
     months: {
       interval: { months: 1 },
       format: `MMMM`,
+      idxFormat: `yyyy-MM`,
     },
     months_6: {
       interval: { months: 6 },
       format: `MMMM`,
+      idxFormat: `yyyy-MM`,
     },
     quarters: {
       interval: { quarters: 1 },
       format: `q`,
+      idxFormat: `yyyy-q`,
     },
     years: {
       interval: { years: 1 },

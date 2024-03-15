@@ -29,22 +29,23 @@ class ChartEvent
    * @type {String}
    * @const
    * @default `gantt:rendered`
+   * @see {@link ChartEvent#event:ChartRendered|ChartRendered}
    */
   static RENDERED = `${this.EVENT_NAMESPACE}:rendered`;
 
   /**
    * @type {String}
    * @const
-   * @default `gantt:startlinemove`
+   * @default `gantt:startbarmove`
    */
-  static LINE_MOVE_START = `${this.EVENT_NAMESPACE}:startlinemove`;
+  static START_BAR_MOVE = `${this.EVENT_NAMESPACE}:startbarmove`;
 
   /**
    * @type {String}
    * @const
-   * @default `gantt:endlinemove`
+   * @default `gantt:endbarmove`
    */
-  static LINE_MOVE_END = `${this.EVENT_NAMESPACE}:endlinemove`;
+  static END_BAR_MOVE = `${this.EVENT_NAMESPACE}:endbarmove`;
 }
 
 export default ChartEvent;
