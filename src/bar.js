@@ -51,6 +51,13 @@ class ChartBar
    * @default false
    */
   contentIsHTML = false;
+
+  /**
+   * Once the {@link Bar} is processed, it is assigned a vertical index, which is used for rendering
+   * @readonly
+   * @type {Number}
+   */
+  yIndex;
 }
 
 export default ChartBar;

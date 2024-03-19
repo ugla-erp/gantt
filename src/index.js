@@ -24,10 +24,10 @@ class Chart
    * @param {ChartOptions|undefined} options
    * @param {external:DateTime|String|Number|undefined} start If a String or a Number, will be treated as UTC, and then converted to {@link ChartOptions#timezone}. If {@link external:DateTime|DateTime}, will only convert to {@link ChartOptions#timezone}
    * @param {external:DateTime|String|Number|undefined} end If a String or a Number, will be treated as UTC, and then converted to {@link ChartOptions#timezone}. If {@link external:DateTime|DateTime}, will only convert to {@link ChartOptions#timezone}
-   * @param {ChartBar[]} [data=[]]
+   * @param {ChartBar[]} data
    * @returns {Chart}
    */
-  static get(container, options, start, end, data = [])
+  static get(container, options, start, end, data)
   {
     if(!container instanceof Element)
     {
@@ -58,23 +58,35 @@ class Chart
       instance.container = container;
       instance.options = options;
       instance.processOptions();
-      instance.setData(data, false);
 
       container.UGLAGanttInstance = instance;
       instance.setAttribute(`container`, ``);
 
       instance.updateContainerStyle();
-      instance.setPeriod(start, end);
+      instance.setPeriod(start, end, false);
+
+      if(data !== undefined)
+      {
+        instance.setData(data);
+      }
+      else
+      {
+        instance.render();
+      }
     }
     else if(options !== undefined)
     {
       instance.options = options;
       instance.processOptions();
-      instance.setData(data, false);
 
       if(start !== undefined || end !== undefined)
       {
-        instance.setPeriod(start, end);
+        instance.setPeriod(start, end, false);
+      }
+
+      if(data !== undefined)
+      {
+        instance.setData(data);
       }
       else
       {
@@ -124,6 +136,12 @@ class Chart
   data;
 
   /**
+   * @private
+   * @type {Map<String,Number>}
+   */
+  formatToColumnMap = new Map();
+
+  /**
    * @readonly
    * @type {Number}
    */
@@ -139,7 +157,35 @@ class Chart
    * @readonly
    * @type {Number}
    */
+  columnWidthEm = 0.0;
+
+  /**
+   * @readonly
+   * @type {Number}
+   */
   rowHeight = 0.0;
+
+  /**
+   * Height of the {@link Chart} measured in number of rows
+   * @readonly
+   * @type {Number}
+   */
+  chartHeight = 0;
+
+  /**
+   * @readonly
+   * @type {Number}
+   */
+  columnsNumber = 0;
+
+  // CONSTANTS
+
+  /**
+   * @private
+   * @constant
+   * @type {Number}
+   */
+  static BAR_HEIGHT_COEFFICIENT = 0.6;
 
   constructor(warn = true)
   {
@@ -177,6 +223,10 @@ class Chart
    * @property {CSSStyleDeclaration} [customization.chart.body.style={}]
    * @property {CSSStyleDeclaration} [customization.chart.body.lastStyle={}]
    * @property {CSSStyleDeclaration} [customization.chart.body.firstStyle={}]
+   * 
+   * @property {Object} customization.chart.bar
+   * @property {CSSStyleDeclaration} [customization.chart.bar.style={}]
+   * @property {Number} [customization.chart.bar.heightCoef=0.6] A number between 0 and 1 (0, 1]. Represents the percentage of row height that a bar will take up. The bar will be automatically centered vertically. If not between 0 and 1, will revert to default value
    * 
    * @property {Object} customization.connectingLines Configuration relating to the lines that are drawn onto the canvas, connecting {@link Bar} instances
    * @property {Number} [customization.connectingLines.thickness=2]
@@ -235,11 +285,10 @@ class Chart
               borderBottomStyle: `solid`,
               borderBottomColor: `#464646`,
               width: `min-content`,
+              position: `relative`,
             },
           },
-          firstStyle: {
-
-          },
+          firstStyle: {},
           lastStyle: {
             borderRightColor: `#464646`,
             borderRightStyle: `dashed`,
@@ -249,6 +298,13 @@ class Chart
             borderLeftColor: `#464646`,
             borderLeftStyle: `dashed`,
             borderLeftWidth: `0.1em`,
+          },
+        },
+        bar: {
+          heightCoef: this.BAR_HEIGHT_COEFFICIENT,
+          style: {
+            background: `red`,
+            borderRadius: `1em`,
           },
         },
       },
@@ -340,6 +396,7 @@ class Chart
 
       this.fontSize = bodyColumnFontSize;
       this.columnWidth = trueColumnWidth;
+      this.columnWidthEm = trueColumnWidth / bodyColumnFontSize;
       this.rowHeight = this.options.customization.chart.body.rowHeightEm * this.fontSize;
 
       columns.forEach((column, idx) => {
@@ -391,6 +448,15 @@ class Chart
         throw new Error(`Undefined mode preset '${this.options.mode}'. If you want to use a custom interval and/or format, pass an instance of ChartMode. See ${DOCS_FULL_URL}/ChartMode.html`);
       }
     }
+
+    /**
+     * Bar height coefficient check
+     */
+    if(typeof this.options.customization.chart.bar.heightCoef !== `number` || this.options.customization.chart.bar.heightCoef <= 0 || this.options.customization.chart.bar.heightCoef > 1)
+    {
+      console.warn(`Option {customization.chart.bar.heightCoef} reverted back to '${this.BAR_HEIGHT_COEFFICIENT}' due to invalid value - '${this.options.customization.chart.bar.heightCoef}'`);
+      this.options.customization.chart.bar.heightCoef = this.BAR_HEIGHT_COEFFICIENT;
+    }
   }
 
   /**
@@ -411,6 +477,8 @@ class Chart
     {
       this.end = this.castToDateTime(end);
     }
+
+    this.buildFormatToColumnMap();
 
     return render ? this.render() : Promise.resolve(this);
   }
@@ -439,12 +507,22 @@ class Chart
   }
 
   /**
-   * If render is set to true, only ChartBars will be rendered, not the entire Chart
+   * @private
+   */
+  buildFormatToColumnMap()
+  {
+    this.formatToColumnMap.clear();
+    const interval = Interval.fromDateTimes(this.start, this.end);
+    interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(dt.start.toFormat(this.options.mode.format), idx));
+  }
+
+  /**
    * @param {ChartBar[]} data
    * @param {Boolean} [render=true]
+   * @param {Boolean} [renderOnlyBars=false] if set to `true`, only {@link ChartBar|ChartBars} will be rendered, not the entire {@link Chart}
    * @returns {Promise<Chart>}
    */
-  setData(data, render = true)
+  setData(data, render = true, renderOnlyBars = false)
   {
     /**
      * @param {ChartBar} bar
@@ -454,9 +532,140 @@ class Chart
     });
 
     this.data = data;
+    this.calculateChartHeight();
 
-    return !render ? Promise.resolve(Chart) : new Promise(resolve => {
+    return !render ? Promise.resolve(Chart) : (renderOnlyBars ? this.renderBars() : this.render());
+  }
 
+  /**
+   * @private
+   */
+  calculateChartHeight()
+  {
+    const keyPoints = [];
+
+    this.data.forEach((bar, dataIDX) =>
+    {
+      keyPoints.push({ idx: bar.startIDX, type: 1, dataIDX });
+      keyPoints.push({ idx: bar.endIDX, type: -1, dataIDX });
+    });
+
+    keyPoints.sort((a, b) =>
+    {
+      if(a.idx === b.idx)
+      {
+        if(a.type === b.type)
+        {
+          const aMillis = this.data[a.dataIDX].start.toMillis();
+          const bMillis = this.data[b.dataIDX].start.toMillis();
+          if(aMillis === bMillis)
+          {
+            if(a.dataIDX > b.dataIDX)
+            {
+              return 1;
+            }
+            else
+            {
+              return -1;
+            }
+          }
+          else if(aMillis > bMillis)
+          {
+            return -1;
+          }
+          else
+          {
+            return 1;
+          }
+        }
+        else if(a.type === 1)
+        {
+          return -1;
+        }
+        else
+        {
+          return 1;
+        }
+      }
+      else if(a.idx < b.idx)
+      {
+        return -1;
+      }
+      else
+      {
+        return 1;
+      }
+    });
+
+    let currentHeight = 0;
+    let maxHeight = 0;
+
+    console.log(keyPoints)
+
+    keyPoints.forEach(obj => {
+      this.data[obj.dataIDX].yIndex = currentHeight - 1;
+      currentHeight += obj.type;
+
+      if(currentHeight > maxHeight)
+      {
+        maxHeight = currentHeight;
+      }
+    });
+
+    this.chartHeight = Math.max(maxHeight, 1);
+
+    // this.data.sort((a, b) => {
+    //   if(a.yIndex === b.yIndex)
+    //   {
+    //     return 0;
+    //   }
+    //   else if(a.yIndex > b.yIndex)
+    //   {
+    //     return 1;
+    //   }
+    //   else
+    //   {
+    //     return -1;
+    //   }
+    // });
+  }
+
+  /**
+   * @returns {Promise<Chart>}
+   */
+  renderBars()
+  {
+    return new Promise(async resolve => {
+      const rowHeightEm = this.options.customization.chart.body.rowHeightEm;
+      const barHeightCoef = this.options.customization.chart.bar.heightCoef;
+
+      const promises = this.data.map(bar => {
+        return new Promise(resolveBar => {
+          const barEl = document.createElement(`span`);
+
+          Object.assign(barEl.style, this.options.customization.chart.bar.style);
+
+          barEl.style.left = `${bar.startIDX * this.columnWidthEm}em`;
+          barEl.style.top = `${(bar.yIndex * rowHeightEm) + rowHeightEm * ((1 - barHeightCoef) / 2)}em`;
+
+          barEl.style.height = `${rowHeightEm * barHeightCoef}em`;
+          barEl.style.width = `${(bar.endIDX - bar.startIDX + 1) * this.columnWidthEm}em`;
+          barEl.style.position = `absolute`;
+
+          resolveBar(barEl);
+        });
+      });
+
+      Promise.all(promises).then(bars => {
+        for(let i = this.chartBody.childNodes.length - 1; i >= this.columnsNumber; i--)
+        {
+          this.chartBody.childNodes[i].remove();
+        }
+
+        this.chartBody.append(...bars);
+
+        resolve(this);
+      });
     });
   }
 
@@ -469,11 +678,13 @@ class Chart
     if(bar.startIDX === undefined)
     {
       bar.start = this.castToDateTime(bar.start);
+      bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.format));
     }
 
     if(bar.endIDX === undefined)
     {
       bar.end = this.castToDateTime(bar.end);
+      bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.format));
     }
   }
 
@@ -506,6 +717,12 @@ class Chart
 
         this.container.replaceChildren(scrollBody);
         this.updateColumnWidth();
+
+        const computedStyle = window.getComputedStyle(chartBody);
+        const borderHeightsEm = (parseFloat(computedStyle.borderTopWidth) + parseFloat(computedStyle.borderBottomWidth)) / parseFloat(computedStyle.fontSize);
+        Object.assign(chartBody.style, { minHeight: `${this.options.customization.chart.body.rowHeightEm * this.chartHeight + borderHeightsEm}em`, height: `1px` });
+
+        await this.renderBars();
 
         resolve(this);
 
@@ -541,6 +758,8 @@ class Chart
         const chartHeader = document.createElement(`div`);
         const chartBody = document.createElement(`div`);
 
+        this.columnsNumber = columns.length;
+
         if(columns.length > 0)
         {
           Object.assign(chartHeader.style, this.options.customization.chart.header.container.style);
@@ -552,7 +771,6 @@ class Chart
           chartHeader.append(...columns);
 
           Object.assign(chartBody.style, this.options.customization.chart.body.container.style);
-          Object.assign(chartBody.style, { minHeight: `${this.options.customization.chart.body.rowHeightEm}em`, height: `1px` });
 
           const bodyColumn = document.createElement(`div`);
           Object.assign(bodyColumn.style, this.options.customization.chart.body.style);
@@ -606,10 +824,9 @@ class Chart
   /**
    * @private
    */
-  renderBars()
+  initPan()
   {
-    let bodyHeight = 0;
-    return { bodyHeight };
+    
   }
 
   /**
