@@ -187,6 +187,13 @@ class Chart
    */
   static BAR_HEIGHT_COEFFICIENT = 0.6;
 
+  /**
+   * @private
+   * @constant
+   * @type {Number}
+   */
+  static BAR_HORIZONTAL_MARGIN = 0.3;
+
   constructor(warn = true)
   {
     if(warn)
@@ -208,6 +215,7 @@ class Chart
    * @property {CSSStyleDeclaration} [customization.container.style={}]
    * 
    * @property {Object} customization.chart
+   * @property {Number} [customization.chart.panSpeed=3]
    * @property {Number} [customization.chart.minWidthEm=2]
    * 
    * @property {Object} customization.chart.header
@@ -227,6 +235,7 @@ class Chart
    * @property {Object} customization.chart.bar
    * @property {CSSStyleDeclaration} [customization.chart.bar.style={}]
    * @property {Number} [customization.chart.bar.heightCoef=0.6] A number between 0 and 1 (0, 1]. Represents the percentage of row height that a bar will take up. The bar will be automatically centered vertically. If not between 0 and 1, will revert to default value
+   * @property {Number} [customization.chart.bar.horizontalMarginEm=0.3]
    * 
    * @property {Object} customization.connectingLines Configuration relating to the lines that are drawn onto the canvas, connecting {@link Bar} instances
    * @property {Number} [customization.connectingLines.thickness=2]
@@ -253,6 +262,7 @@ class Chart
       },
       chart: {
         minWidthEm: 2,
+        panSpeed: 3,
         header: {
           container: {
             style: {
@@ -302,6 +312,7 @@ class Chart
         },
         bar: {
           heightCoef: this.BAR_HEIGHT_COEFFICIENT,
+          horizontalMarginEm: this.BAR_HORIZONTAL_MARGIN,
           style: {
             background: `red`,
             borderRadius: `1em`,
@@ -321,7 +332,7 @@ class Chart
    */
   get chartHeader()
   {
-    return this.container?.childNodes?.[0]?.childNodes?.[0];
+    return this.chartScroll?.childNodes?.[0];
   }
 
   /**
@@ -330,7 +341,16 @@ class Chart
    */
   get chartBody()
   {
-    return this.container?.childNodes?.[0]?.childNodes?.[1];
+    return this.chartScroll?.childNodes?.[1];
+  }
+
+  /**
+   * @type {Element|undefined}
+   * @readonly
+   */
+  get chartScroll()
+  {
+    return this.container?.childNodes?.[0];
   }
 
   /**
@@ -426,6 +446,8 @@ class Chart
       this.processOptions();
     }
 
+    this.reindexData();
+
     return render ? this.render() : Promise.resolve(this);
   }
 
@@ -478,7 +500,7 @@ class Chart
       this.end = this.castToDateTime(end);
     }
 
-    this.buildFormatToColumnMap();
+    this.reindexData();
 
     return render ? this.render() : Promise.resolve(this);
   }
@@ -509,11 +531,23 @@ class Chart
   /**
    * @private
    */
+  reindexData()
+  {
+    this.buildFormatToColumnMap();
+    this.data?.forEach(bar => {
+      bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+      bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+    });
+  }
+
+  /**
+   * @private
+   */
   buildFormatToColumnMap()
   {
     this.formatToColumnMap.clear();
     const interval = Interval.fromDateTimes(this.start, this.end);
-    interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(dt.start.toFormat(this.options.mode.format), idx));
+    interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(dt.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format), idx));
   }
 
   /**
@@ -578,32 +612,34 @@ class Chart
             return 1;
           }
         }
-        else if(a.type === 1)
-        {
-          return -1;
-        }
-        else
+        else if(a.type < b.type)
         {
           return 1;
         }
+        else
+        {
+          return -1;
+        }
       }
-      else if(a.idx < b.idx)
+      else if(a.idx > b.idx)
       {
-        return -1;
+        return 1;
       }
       else
       {
-        return 1;
+        return -1;
       }
     });
 
     let currentHeight = 0;
     let maxHeight = 0;
 
-    console.log(keyPoints)
-
     keyPoints.forEach(obj => {
-      this.data[obj.dataIDX].yIndex = currentHeight - 1;
+      if(this.data[obj.dataIDX].yIndex === undefined)
+      {
+        this.data[obj.dataIDX].yIndex = currentHeight;
+      }
+
       currentHeight += obj.type;
 
       if(currentHeight > maxHeight)
@@ -613,21 +649,6 @@ class Chart
     });
 
     this.chartHeight = Math.max(maxHeight, 1);
-
-    // this.data.sort((a, b) => {
-    //   if(a.yIndex === b.yIndex)
-    //   {
-    //     return 0;
-    //   }
-    //   else if(a.yIndex > b.yIndex)
-    //   {
-    //     return 1;
-    //   }
-    //   else
-    //   {
-    //     return -1;
-    //   }
-    // });
   }
 
   /**
@@ -645,11 +666,11 @@ class Chart
 
           Object.assign(barEl.style, this.options.customization.chart.bar.style);
 
-          barEl.style.left = `${bar.startIDX * this.columnWidthEm}em`;
+          barEl.style.left = `${bar.startIDX * this.columnWidthEm + this.options.customization.chart.bar.horizontalMarginEm}em`;
           barEl.style.top = `${(bar.yIndex * rowHeightEm) + rowHeightEm * ((1 - barHeightCoef) / 2)}em`;
 
           barEl.style.height = `${rowHeightEm * barHeightCoef}em`;
-          barEl.style.width = `${(bar.endIDX - bar.startIDX + 1) * this.columnWidthEm}em`;
+          barEl.style.width = `${((bar.endIDX - bar.startIDX + 1) * this.columnWidthEm) - this.options.customization.chart.bar.horizontalMarginEm * 2}em`;
           barEl.style.position = `absolute`;
 
           resolveBar(barEl);
@@ -678,13 +699,13 @@ class Chart
     if(bar.startIDX === undefined)
     {
       bar.start = this.castToDateTime(bar.start);
-      bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.format));
+      bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
     }
 
     if(bar.endIDX === undefined)
     {
       bar.end = this.castToDateTime(bar.end);
-      bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.format));
+      bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
     }
   }
 
@@ -701,7 +722,7 @@ class Chart
     return new Promise(async (resolve, reject) => {
       try
       {
-        const { chartHeader, chartBody } = await this.renderCanvas();
+        const { chartHeader, chartBody } = await this.renderChartTemplate();
 
         const scrollBody = document.createElement(`div`);
 
@@ -709,6 +730,7 @@ class Chart
           display: `flex`,
           flexDirection: `column`,
           width: `100%`,
+          height: `100%`,
           overflowX: `auto`,
           overflowY: `hidden`,
         });
@@ -716,11 +738,13 @@ class Chart
         scrollBody.append(chartHeader, chartBody);
 
         this.container.replaceChildren(scrollBody);
+
+        this.initPan();
         this.updateColumnWidth();
 
         const computedStyle = window.getComputedStyle(chartBody);
         const borderHeightsEm = (parseFloat(computedStyle.borderTopWidth) + parseFloat(computedStyle.borderBottomWidth)) / parseFloat(computedStyle.fontSize);
-        Object.assign(chartBody.style, { minHeight: `${this.options.customization.chart.body.rowHeightEm * this.chartHeight + borderHeightsEm}em`, height: `1px` });
+        Object.assign(chartBody.style, { height: `${this.options.customization.chart.body.rowHeightEm * this.chartHeight + borderHeightsEm}em` });
 
         await this.renderBars();
 
@@ -748,7 +772,7 @@ class Chart
    * @private
    * @returns {Promise<Element>}
    */
-  renderCanvas()
+  renderChartTemplate()
   {
     return new Promise(resolve => {
       const interval = Interval.fromDateTimes(this.start, this.end);
@@ -822,11 +846,22 @@ class Chart
   }
 
   /**
-   * @private
+   * 
+   * @param {Number} x
+   * @param {Number} y
+   * @param {boolean} [smooth=true]
    */
-  initPan()
+  scrollTo(x, y, smooth = true)
   {
-    
+    const xOldScrollBehavior = this.chartScroll.style.scrollBehavior;
+    this.chartScroll.style.scrollBehavior = smooth ? `smooth` : `auto`;
+    this.chartScroll.scrollLeft = x;
+    this.chartScroll.style.scrollBehavior = xOldScrollBehavior;
+
+    const yOldScrollBehavior = this.chartBody.style.scrollBehavior;
+    this.chartBody.style.scrollBehavior = smooth ? `smooth` : `auto`;
+    this.chartBody.scrollLeft = y;
+    this.chartBody.style.scrollBehavior = yOldScrollBehavior;
   }
 
   /**
@@ -836,6 +871,56 @@ class Chart
   trigger(event)
   {
     this.container.dispatchEvent(event);
+  }
+
+  // PANNING
+
+  #mouseIsDown = false;
+  #startY = 0;
+  #startScrollTop = 0;
+  #startX = 0;
+  #startScrollLeft = 0;
+
+  /**
+   * @private
+   * @param {Element} chartBody 
+   */
+  initPan()
+  {
+    this.container.addEventListener(`mousedown`, (e) => {
+      this.#mouseIsDown = true;
+
+      this.#startY = e.pageY - this.chartBody.offsetTop;
+      this.#startScrollTop = this.chartBody.scrollTop;
+      this.#startX = e.pageX - this.chartScroll.offsetLeft;
+      this.#startScrollLeft = this.chartScroll.scrollLeft;
+    });
+
+    this.container.addEventListener(`mouseup`, () => {
+      this.#mouseIsDown = false;
+    });
+
+    this.container.addEventListener(`mouseleave`, () => {
+      this.#mouseIsDown = false;
+    });
+
+    this.container.addEventListener(`mousemove`, (e) => {
+      if(!this.#mouseIsDown)
+      {
+        return;
+      }
+
+      e.preventDefault();
+
+      const x = e.pageX - this.chartScroll.offsetLeft;
+      const deltaX = (x - this.#startX) * this.options.customization.chart.panSpeed;
+
+      const y = e.pageY - this.chartScroll.offsetLeft;
+      const deltaY = (y - this.#startY) * this.options.customization.chart.panSpeed;
+
+      this.chartScroll.scrollLeft = this.#startScrollLeft - deltaX;
+      this.chartBody.scrollTop = this.#startScrollTop - deltaY;
+    });
   }
 }
 
