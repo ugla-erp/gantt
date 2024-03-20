@@ -36,16 +36,40 @@ class ChartEvent
   /**
    * @type {String}
    * @const
-   * @default `gantt:startbarmove`
+   * @default `gantt:barclick`
+   * @see {@link ChartEvent#event:ChartBarClick|ChartBarClick}
    */
-  static START_BAR_MOVE = `${this.EVENT_NAMESPACE}:startbarmove`;
+  static BARCLICK = `${this.EVENT_NAMESPACE}:barclick`;
 
   /**
    * @type {String}
    * @const
-   * @default `gantt:endbarmove`
+   * @default `gantt:bardblclick`
+   * @see {@link ChartEvent#event:ChartBarDoubleClick|ChartBarDoubleClick}
    */
-  static END_BAR_MOVE = `${this.EVENT_NAMESPACE}:endbarmove`;
+  static BARDBLCLICK = `${this.EVENT_NAMESPACE}:bardblclick`;
+
+  /**
+   * @type {String}
+   * @const
+   * @default `gantt:barhover`
+   * @see {@link ChartEvent#event:ChartBarHover|ChartBarHover}
+   */
+  static BARHOVER = `${this.EVENT_NAMESPACE}:barhover`;
+
+  // /**
+  //  * @type {String}
+  //  * @const
+  //  * @default `gantt:startbarmove`
+  //  */
+  // static START_BAR_MOVE = `${this.EVENT_NAMESPACE}:startbarmove`;
+
+  // /**
+  //  * @type {String}
+  //  * @const
+  //  * @default `gantt:endbarmove`
+  //  */
+  // static END_BAR_MOVE = `${this.EVENT_NAMESPACE}:endbarmove`;
 }
 
 export default ChartEvent;

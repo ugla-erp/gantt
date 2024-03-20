@@ -5,11 +5,31 @@ import { DOCS_FULL_URL } from "./utils.js";
 import { DateTime, Interval } from "luxon";
 import format from "string-template";
 import ChartBar from "./bar.js";
+import { Grid, BestFirstFinder, Util } from "pathfinding";
 
 /**
  * DateTime object from {@link https://moment.github.io/luxon|luxon}
  * @external DateTime
  * @see {@link https://moment.github.io/luxon/api-docs/index.html#datetime|DateTime}
+ */
+
+/**
+ * @typedef {Object} ChartCoordinates
+ * @property {Object} center
+ * @property {Number} center.x offset from the left, in a number of columns
+ * @property {Number} center.y offset from the top, in a number of rows
+ * @property {Object} top
+ * @property {Number} top.x offset from the left, in a number of columns
+ * @property {Number} top.y offset from the top, in a number of rows
+ * @property {Object} right
+ * @property {Number} right.x offset from the left, in a number of columns
+ * @property {Number} right.y offset from the top, in a number of rows
+ * @property {Object} bottom
+ * @property {Number} bottom.x offset from the left, in a number of columns
+ * @property {Number} bottom.y offset from the top, in a number of rows
+ * @property {Object} left
+ * @property {Number} left.x offset from the left, in a number of columns
+ * @property {Number} left.y offset from the top, in a number of rows
  */
 
 /**
@@ -142,6 +162,23 @@ class Chart
   formatToColumnMap = new Map();
 
   /**
+   * @private
+   * @type {Map<String,ChartBar[]>}
+   */
+  barIDToDataMap = new Map();
+
+  /**
+   * @private
+   * @type {Grid}
+   */
+  pathfindingGrid;
+
+  /**
+   * @private
+   */
+  pathfinder = new BestFirstFinder();
+
+  /**
    * @readonly
    * @type {Number}
    */
@@ -215,7 +252,8 @@ class Chart
    * @property {CSSStyleDeclaration} [customization.container.style={}]
    * 
    * @property {Object} customization.chart
-   * @property {Number} [customization.chart.panSpeed=3]
+   * @property {Boolean} [customization.chart.panning=true]
+   * @property {Number} [customization.chart.panSpeed=1]
    * @property {Number} [customization.chart.minWidthEm=2]
    * 
    * @property {Object} customization.chart.header
@@ -233,6 +271,7 @@ class Chart
    * @property {CSSStyleDeclaration} [customization.chart.body.firstStyle={}]
    * 
    * @property {Object} customization.chart.bar
+   * @property {String} [customization.chart.bar.class=``]
    * @property {CSSStyleDeclaration} [customization.chart.bar.style={}]
    * @property {Number} [customization.chart.bar.heightCoef=0.6] A number between 0 and 1 (0, 1]. Represents the percentage of row height that a bar will take up. The bar will be automatically centered vertically. If not between 0 and 1, will revert to default value
    * @property {Number} [customization.chart.bar.horizontalMarginEm=0.3]
@@ -258,11 +297,13 @@ class Chart
           background: `#FFFFFF`,
           borderRadius: `1em`,
           fontFamily: `Lato`,
+          height: `100%`,
         },
       },
       chart: {
         minWidthEm: 2,
-        panSpeed: 3,
+        panning: true,
+        panSpeed: 1,
         header: {
           container: {
             style: {
@@ -295,6 +336,7 @@ class Chart
               borderBottomStyle: `solid`,
               borderBottomColor: `#464646`,
               width: `min-content`,
+              flexGrow: 1,
               position: `relative`,
             },
           },
@@ -313,6 +355,7 @@ class Chart
         bar: {
           heightCoef: this.BAR_HEIGHT_COEFFICIENT,
           horizontalMarginEm: this.BAR_HORIZONTAL_MARGIN,
+          class: ``,
           style: {
             background: `red`,
             borderRadius: `1em`,
@@ -351,6 +394,15 @@ class Chart
   get chartScroll()
   {
     return this.container?.childNodes?.[0];
+  }
+
+  /**
+   * @type {HTMLCanvasElement|undefined}
+   * @readonly
+   */
+  get chartCanvas()
+  {
+    return this.chartBody?.childNodes?.[this.columnsNumber];
   }
 
   /**
@@ -534,10 +586,16 @@ class Chart
   reindexData()
   {
     this.buildFormatToColumnMap();
-    this.data?.forEach(bar => {
-      bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
-      bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
-    });
+
+    if(this.data !== undefined)
+    {
+      this.data.forEach(bar => {
+        bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+        bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+      });
+      this.calculateChartHeight();
+      this.buildPathfindingGrid();
+    }
   }
 
   /**
@@ -548,6 +606,69 @@ class Chart
     this.formatToColumnMap.clear();
     const interval = Interval.fromDateTimes(this.start, this.end);
     interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(dt.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format), idx));
+  }
+
+  /**
+   * @private
+   */
+  buildBarIDToDataMap()
+  {
+    this.barIDToDataMap.clear();
+
+    this.data.forEach(bar => {
+      const arr = this.barIDToDataMap.get(String(bar.id)) ?? [];
+      arr.push(bar);
+      this.barIDToDataMap.set(String(bar.id), arr);
+    });
+  }
+
+  /**
+   * @private
+   */
+  buildPathfindingGrid()
+  {
+    const sorted = this.data.toSorted((a, b) => {
+      if(a.yIndex > b.yIndex)
+      {
+        return 1;
+      }
+      else
+      {
+        return -1;
+      }
+    });
+
+    const gridLastIDX = (this.columnsNumber) * 2;
+    const emptyRow = Array(this.chartHeight * 2).fill(0);
+    const matrix = [];
+
+    sorted.forEach(bar => {
+      const length = ((bar.endIDX - bar.startIDX + 1) * 2) - 1;
+      const start = (bar.startIDX * 2) + 1;
+      const end = (bar.endIDX * 2) + 1;
+
+      let rowArray = Array(gridLastIDX);
+
+      if(start > 0)
+      {
+        rowArray = rowArray.fill(0, 0, start)
+      }
+
+      rowArray = rowArray.fill(1, start, start + length);
+
+      if(end < gridLastIDX)
+      {
+        rowArray = rowArray.fill(0, end + 1, gridLastIDX);
+      }
+
+      matrix.push(rowArray);
+      matrix.push(emptyRow);
+    });
+
+    if(matrix.length > 0)
+    {
+      this.pathfindingGrid = new Grid(matrix);
+    }
   }
 
   /**
@@ -566,6 +687,7 @@ class Chart
     });
 
     this.data = data;
+    this.buildBarIDToDataMap();
     this.calculateChartHeight();
 
     return !render ? Promise.resolve(Chart) : (renderOnlyBars ? this.renderBars() : this.render());
@@ -576,52 +698,25 @@ class Chart
    */
   calculateChartHeight()
   {
-    const keyPoints = [];
-
-    this.data.forEach((bar, dataIDX) =>
-    {
-      keyPoints.push({ idx: bar.startIDX, type: 1, dataIDX });
-      keyPoints.push({ idx: bar.endIDX, type: -1, dataIDX });
-    });
-
-    keyPoints.sort((a, b) =>
-    {
-      if(a.idx === b.idx)
+    const sorted = this.data.toSorted((a, b) => {
+      if(a.startIDX === b.startIDX)
       {
-        if(a.type === b.type)
+        const aMillis = a.start.toMillis();
+        const bMillis = b.start.toMillis();
+        if(aMillis === bMillis)
         {
-          const aMillis = this.data[a.dataIDX].start.toMillis();
-          const bMillis = this.data[b.dataIDX].start.toMillis();
-          if(aMillis === bMillis)
-          {
-            if(a.dataIDX > b.dataIDX)
-            {
-              return 1;
-            }
-            else
-            {
-              return -1;
-            }
-          }
-          else if(aMillis > bMillis)
-          {
-            return -1;
-          }
-          else
-          {
-            return 1;
-          }
+          return 0;
         }
-        else if(a.type < b.type)
-        {
-          return 1;
-        }
-        else
+        else if(aMillis > bMillis)
         {
           return -1;
         }
+        else
+        {
+          return 1;
+        }
       }
-      else if(a.idx > b.idx)
+      else if(a.startIDX > b.startIDX)
       {
         return 1;
       }
@@ -631,24 +726,11 @@ class Chart
       }
     });
 
-    let currentHeight = 0;
-    let maxHeight = 0;
-
-    keyPoints.forEach(obj => {
-      if(this.data[obj.dataIDX].yIndex === undefined)
-      {
-        this.data[obj.dataIDX].yIndex = currentHeight;
-      }
-
-      currentHeight += obj.type;
-
-      if(currentHeight > maxHeight)
-      {
-        maxHeight = currentHeight;
-      }
+    sorted.forEach((bar, idx) => {
+      bar.yIndex = idx;
     });
 
-    this.chartHeight = Math.max(maxHeight, 1);
+    this.chartHeight = Math.max(sorted.length, 1);
   }
 
   /**
@@ -656,14 +738,27 @@ class Chart
    */
   renderBars()
   {
-    return new Promise(async resolve => {
+    return new Promise(resolve => {
       const rowHeightEm = this.options.customization.chart.body.rowHeightEm;
       const barHeightCoef = this.options.customization.chart.bar.heightCoef;
 
-      const promises = this.data.map(bar => {
+      const promises = this.data.map((bar, dataIDX) => {
         return new Promise(resolveBar => {
-          const barEl = document.createElement(`span`);
+          const uid = `${dataIDX}_${bar.id}`;
 
+          let barEl = this.container.querySelector(`[${this.attributeName(`bar-uid`)}="${uid}"]`);
+
+          if(barEl === null)
+          {
+            barEl = document.createElement(`span`);
+
+            this.initBarEvents(bar, barEl);
+
+            this.setAttribute(`bar-id`, bar.id, barEl);
+            this.setAttribute(`bar-uid`, uid, barEl);
+          }
+
+          barEl.className = this.options.customization.chart.bar.class;
           Object.assign(barEl.style, this.options.customization.chart.bar.style);
 
           barEl.style.left = `${bar.startIDX * this.columnWidthEm + this.options.customization.chart.bar.horizontalMarginEm}em`;
@@ -673,20 +768,185 @@ class Chart
           barEl.style.width = `${((bar.endIDX - bar.startIDX + 1) * this.columnWidthEm) - this.options.customization.chart.bar.horizontalMarginEm * 2}em`;
           barEl.style.position = `absolute`;
 
-          resolveBar(barEl);
+          barEl.UGLAGanttBarData = bar;
+
+          resolveBar({ barEl, uid});
         });
       });
 
-      Promise.all(promises).then(bars => {
+      Promise.all(promises).then(async data => {
+        /**
+         * @type {Element[]}
+         */
+        const bars = data.map(el => el.barEl);
+        /**
+         * @type {Set<String>}
+         */
+        const uids = new Set(data.map(el => el.uid));
+
         for(let i = this.chartBody.childNodes.length - 1; i >= this.columnsNumber; i--)
         {
-          this.chartBody.childNodes[i].remove();
+          if(!(this.chartBody.childNodes[i] instanceof HTMLCanvasElement) && !uids.has(this.getAttribute(`bar-uid`, undefined, this.chartBody.childNodes[i])))
+          {
+            this.chartBody.childNodes[i].remove();
+          }
         }
 
         this.chartBody.append(...bars);
 
+        this.buildPathfindingGrid();
+
+        await this.renderConnectingLines();
+
         resolve(this);
       });
+    });
+  }
+
+  /**
+   * @returns {Promise<Chart>}
+   */
+  renderConnectingLines()
+  {
+    const context = this.chartCanvas.getContext(`2d`);
+
+    context.lineCap = `round`;
+    context.lineJoin = `round`;
+    context.lineWidth = this.options.customization.connectingLines.thickness;
+
+    return new Promise(resolve => {
+      const promises = [];
+      this.data.forEach(bar => {
+        bar.connectedTo?.forEach(barID => {
+          this.barIDToDataMap.get(String(barID))?.forEach(barTo => {
+            promises.push(this.drawLineBetween(bar, barTo));
+          });
+        });
+      });
+
+      Promise.all(promises).then(() => resolve(this));
+    });
+  }
+
+  /**
+   * @private
+   * @param {ChartBar} barFrom
+   * @param {ChartBar} barTo
+   * @returns {Promise<void>}
+   */
+  drawLineBetween(barFrom, barTo)
+  {
+    return new Promise(resolve => {
+      const from = this.getBarCoordinates(barFrom);
+      const to = this.getBarCoordinates(barTo);
+
+      console.log(from);
+
+      console.log(from.right.x, from.right.y, to.left.x, to.left.y)
+      const r2l = this.pathfinder.findPath(from.right.x, from.right.y, to.left.x, to.left.y, this.pathfindingGrid);
+
+      console.log(r2l)
+
+      resolve();
+    });
+  }
+
+  /**
+   * @param {ChartBar} bar
+   * @param {boolean} [inGridCoordinates=true]
+   * @returns {ChartCoordinates}
+   */
+  getBarCoordinates(bar, inGridCoordinates = true)
+  {
+    /**
+     * @type {ChartCoordinates}
+     */
+    const coords = {
+      center: { x: 0, y: 0 },
+      top: { x: 0, y: 0 },
+      right: { x: 0, y: 0 },
+      left: { x: 0, y: 0 },
+      bottom: { x: 0, y: 0 },
+    };
+
+    const length = (bar.endIDX - bar.startIDX + 1);
+
+    coords.center.y = bar.yIndex + 0.5;
+    coords.center.x = bar.startIDX + (length / 2);
+
+    coords.top.y = coords.center.y - 0.5;
+    coords.top.x = coords.center.x;
+
+    coords.right.y = coords.center.y;
+    coords.right.x = bar.endIDX + 1;
+
+    coords.bottom.y = coords.center.y + 0.5;
+    coords.bottom.x = coords.center.x;
+
+    coords.left.y = coords.center.y;
+    coords.left.x = bar.startIDX;
+
+    if(inGridCoordinates)
+    {
+      coords.center.y *= 2;
+      coords.top.y *= 2;
+      coords.right.y *= 2;
+      coords.bottom.y *= 2;
+      coords.left.y *= 2;
+
+      coords.center.x *= 2;
+      coords.top.x *= 2;
+      coords.right.x *= 2;
+      coords.bottom.x *= 2;
+      coords.left.x *= 2;
+    }
+
+    return coords;
+  }
+
+  /**
+   * @param {ChartBar} bar
+   * @param {Element} barEl
+   */
+  initBarEvents(bar, barEl)
+  {
+    barEl.addEventListener(`click`, (e) => {
+      /**
+       * <code>{ bubbles: <b>true</b>, cancellable: <b>true</b>, composed: <b>false</b> }</code>
+       * @event ChartEvent#ChartBarClick
+       * @type {Event}
+       * @property {Object} detail
+       * @property {Chart} detail.chart
+       * @property {ChartBar} detail.bar
+       * @see {@link ChartEvent#BARCLICK}
+       */
+      this.trigger(new ChartEvent(ChartEvent.BARCLICK, { chart: this, bar }, { bubbles: true, cancelable: true }));
+    });
+
+    barEl.addEventListener(`dblclick`, (e) => {
+      /**
+       * <code>{ bubbles: <b>true</b>, cancellable: <b>true</b>, composed: <b>false</b> }</code>
+       * @event ChartEvent#ChartBarDoubleClick
+       * @type {Event}
+       * @property {Object} detail
+       * @property {Chart} detail.chart
+       * @property {ChartBar} detail.bar
+       * @see {@link ChartEvent#BARDBLCLICK}
+       */
+      this.trigger(new ChartEvent(ChartEvent.BARDBLCLICK, { chart: this, bar }, { bubbles: true, cancelable: true }));
+    });
+
+    barEl.addEventListener(`mouseover`, (e) => {
+      /**
+       * <code>{ bubbles: <b>true</b>, cancellable: <b>true</b>, composed: <b>false</b> }</code>
+       * @event ChartEvent#ChartBarHover
+       * @type {Event}
+       * @property {Object} detail
+       * @property {Chart} detail.chart
+       * @property {ChartBar} detail.bar
+       * @see {@link ChartEvent#BARHOVER}
+       */
+      this.trigger(new ChartEvent(ChartEvent.BARHOVER, { chart: this, bar }, { bubbles: true, cancelable: true }));
     });
   }
 
@@ -743,7 +1003,7 @@ class Chart
         this.updateColumnWidth();
 
         const computedStyle = window.getComputedStyle(chartBody);
-        const borderHeightsEm = (parseFloat(computedStyle.borderTopWidth) + parseFloat(computedStyle.borderBottomWidth)) / parseFloat(computedStyle.fontSize);
+        const borderHeightsEm = ((parseFloat(computedStyle.borderTopWidth) || 0) + (parseFloat(computedStyle.borderBottomWidth) || 0)) / parseFloat(computedStyle.fontSize);
         Object.assign(chartBody.style, { height: `${this.options.customization.chart.body.rowHeightEm * this.chartHeight + borderHeightsEm}em` });
 
         await this.renderBars();
@@ -751,14 +1011,14 @@ class Chart
         resolve(this);
 
         /**
-         * <code>{ bubbles: <b>true</b>, cancellable: <b>false</b>, composed: <b>false</b> }</code>
+         * <code>{ bubbles: <b>true</b>, cancellable: <b>true</b>, composed: <b>false</b> }</code>
          * @event ChartEvent#ChartRendered
          * @type {Event}
          * @property {Object} detail
-         * @property {Chart} detail.instance
+         * @property {Chart} detail.chart
          * @see {@link ChartEvent#RENDERED}
          */
-        this.trigger(new ChartEvent(ChartEvent.RENDERED, { instance: this }, { bubbles: true }));
+        this.trigger(new ChartEvent(ChartEvent.RENDERED, { chart: this }, { bubbles: true, cancelable: true }));
       }
       catch(err)
       {
@@ -790,6 +1050,7 @@ class Chart
           Object.assign(chartHeader.style, {
             overflow: `hidden`,
             width: `min-content`,
+            minWidth: `100%`,
           });
 
           chartHeader.append(...columns);
@@ -799,7 +1060,8 @@ class Chart
           const bodyColumn = document.createElement(`div`);
           Object.assign(bodyColumn.style, this.options.customization.chart.body.style);
           Object.assign(bodyColumn.style, {
-            height: `100%`,
+            height: `${this.chartHeight * this.options.customization.chart.body.rowHeightEm}em`,
+            minHeight: `100%`,
           });
 
           const bodyColumns = [];
@@ -821,6 +1083,11 @@ class Chart
           }
 
           chartBody.append(...bodyColumns);
+          const canvas = document.createElement(`canvas`);
+          canvas.style.position = `absolute`;
+          canvas.style.width = `100%`;
+          canvas.style.height = `100%`;
+          chartBody.append(canvas);
         }
 
         resolve({ chartHeader, chartBody });
@@ -887,7 +1154,12 @@ class Chart
    */
   initPan()
   {
-    this.container.addEventListener(`mousedown`, (e) => {
+    if(!this.options.customization.chart.panning)
+    {
+      return;
+    }
+
+    this.chartBody.addEventListener(`mousedown`, (e) => {
       this.#mouseIsDown = true;
 
       this.#startY = e.pageY - this.chartBody.offsetTop;
@@ -896,15 +1168,15 @@ class Chart
       this.#startScrollLeft = this.chartScroll.scrollLeft;
     });
 
-    this.container.addEventListener(`mouseup`, () => {
+    this.chartBody.addEventListener(`mouseup`, () => {
       this.#mouseIsDown = false;
     });
 
-    this.container.addEventListener(`mouseleave`, () => {
+    this.chartBody.addEventListener(`mouseleave`, () => {
       this.#mouseIsDown = false;
     });
 
-    this.container.addEventListener(`mousemove`, (e) => {
+    this.chartBody.addEventListener(`mousemove`, (e) => {
       if(!this.#mouseIsDown)
       {
         return;
