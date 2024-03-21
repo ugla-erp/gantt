@@ -5,6 +5,7 @@ export default {
       entry: `src/index.js`,
       name: `UGLAGantt`,
       fileName: `gantt`,
+      formats: [`es`, `cjs`, `umd`, `iife`],
     },
   },
 }
