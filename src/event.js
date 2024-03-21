@@ -61,7 +61,7 @@ class ChartEvent
    * @type {String}
    * @const
    * @default `gantt:barmouseenter`
-   * @see {@link ChartEvent#event:ChartBarMouseenter|ChartBarMouseEnter}
+   * @see {@link ChartEvent#event:ChartBarMouseEnter|ChartBarMouseEnter}
    */
   static BARMOUSEENTER = `${this.EVENT_NAMESPACE}:barmouseenter`;
 
@@ -69,23 +69,9 @@ class ChartEvent
    * @type {String}
    * @const
    * @default `gantt:barmouseleave`
-   * @see {@link ChartEvent#event:ChartBarMouseleave|ChartBarMouseLeave}
+   * @see {@link ChartEvent#event:ChartBarMouseLeave|ChartBarMouseLeave}
    */
   static BARMOUSELEAVE = `${this.EVENT_NAMESPACE}:barmouseleave`;
-
-  // /**
-  //  * @type {String}
-  //  * @const
-  //  * @default `gantt:startbarmove`
-  //  */
-  // static START_BAR_MOVE = `${this.EVENT_NAMESPACE}:startbarmove`;
-
-  // /**
-  //  * @type {String}
-  //  * @const
-  //  * @default `gantt:endbarmove`
-  //  */
-  // static END_BAR_MOVE = `${this.EVENT_NAMESPACE}:endbarmove`;
 }
 
 export default ChartEvent;

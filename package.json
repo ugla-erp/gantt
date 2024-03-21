@@ -1,7 +1,7 @@
 {
-  "name": "ugla-gantt",
+  "name": "@ugla/gantt",
   "private": false,
-  "version": "0.0.2",
+  "version": "1.0.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ugla-erp/gantt.git"
@@ -24,12 +24,12 @@
   "files": [
     "dist"
   ],
-  "main": "./dist/ugla-gantt.umd.cjs",
-  "module": "./dist/ugla-gantt.js",
+  "main": "./dist/gantt.umd.cjs",
+  "module": "./dist/gantt.js",
   "exports": {
     ".": {
-      "import": "./dist/ugla-gantt.js",
-      "require": "./dist/ugla-gantt.umd.cjs"
+      "import": "./dist/gantt.js",
+      "require": "./dist/gantt.umd.cjs"
     }
   },
   "scripts": {
@@ -48,5 +48,9 @@
     "luxon": "^3.4.4",
     "pathfinding": "^0.4.18",
     "string-template": "^1.0.0"
+  },
+  "description": "[![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://opensource.org/license/gpl-3-0)",
+  "directories": {
+    "doc": "docs"
   }
 }

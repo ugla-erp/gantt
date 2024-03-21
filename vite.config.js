@@ -4,7 +4,7 @@ export default {
     lib: {
       entry: `src/index.js`,
       name: `UGLA Gantt`,
-      fileName: `ugla-gantt`,
+      fileName: `gantt`,
     },
   },
 }

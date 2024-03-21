@@ -14,25 +14,6 @@ import { Grid, BestFirstFinder } from "pathfinding";
  */
 
 /**
- * @typedef {Object} ChartCoordinates
- * @property {Object} center
- * @property {Number} center.x offset from the left, in a number of columns
- * @property {Number} center.y offset from the top, in a number of rows
- * @property {Object} top
- * @property {Number} top.x offset from the left, in a number of columns
- * @property {Number} top.y offset from the top, in a number of rows
- * @property {Object} right
- * @property {Number} right.x offset from the left, in a number of columns
- * @property {Number} right.y offset from the top, in a number of rows
- * @property {Object} bottom
- * @property {Number} bottom.x offset from the left, in a number of columns
- * @property {Number} bottom.y offset from the top, in a number of rows
- * @property {Object} left
- * @property {Number} left.x offset from the left, in a number of columns
- * @property {Number} left.y offset from the top, in a number of rows
- */
-
-/**
  * @type {Chart}
  * @hideconstructor
  */
@@ -142,16 +123,19 @@ class Chart
 
   /**
    * @type {external:DateTime}
+   * @readonly
    */
   start;
 
   /**
    * @type {external:DateTime}
+   * @readonly
    */
   end;
 
   /**
    * @type {ChartBar[]}
+   * @readonly
    */
   data;
 
@@ -278,7 +262,7 @@ class Chart
    * @property {Number} [customization.chart.bar.horizontalMarginEm=0.8]
    * 
    * @property {Object} customization.connectingLines Configuration relating to the lines that are drawn onto the canvas, connecting {@link Bar} instances
-   * @property {Number} [customization.connectingLines.thickness=3]
+   * @property {Number} [customization.connectingLines.thickness=2]
    * @property {String} [customization.connectingLines.color=`#464646`]
    */
 
@@ -341,16 +325,19 @@ class Chart
               position: `relative`,
             },
           },
-          firstStyle: {},
+          firstStyle: {
+            borderLeftWidth: `0.1em`,
+          },
           lastStyle: {
-            borderRightColor: `#464646`,
-            borderRightStyle: `dashed`,
             borderRightWidth: `0.1em`,
           },
           style: {
             borderLeftColor: `#464646`,
             borderLeftStyle: `dashed`,
-            borderLeftWidth: `0.1em`,
+            borderLeftWidth: `0.05em`,
+            borderRightColor: `#464646`,
+            borderRightStyle: `dashed`,
+            borderRightWidth: `0.05em`,
           },
         },
         bar: {
@@ -365,7 +352,7 @@ class Chart
         },
       },
       connectingLines: {
-        thickness: 2.5,
+        thickness: 2,
         color: `#464646`,
       },
     },
@@ -645,7 +632,7 @@ class Chart
       }
     });
 
-    const gridLastIDX = (this.columnsNumber) * 2;
+    const gridLastIDX = (this.columnsNumber) * 2 + 1;
     const emptyRow = Array(gridLastIDX).fill(0);
     const matrix = [emptyRow];
 
@@ -973,15 +960,13 @@ class Chart
   }
 
   /**
+   * @private
    * @param {ChartBar} bar
-   * @param {boolean} [inPathFindingGridCoordinates=true]
-   * @returns {ChartCoordinates}
+   * @param {Boolean} [inPathFindingGridCoordinates=true]
+   * @returns {Object}
    */
   getBarCoordinates(bar, inPathFindingGridCoordinates = true)
   {
-    /**
-     * @type {ChartCoordinates}
-     */
     const coords = {
       center: { x: 0, y: 0 },
       top: { x: 0, y: 0 },
@@ -1026,6 +1011,7 @@ class Chart
   }
 
   /**
+   * @private
    * @param {ChartBar} bar
    * @param {Element} barEl
    */
