@@ -4,9 +4,66 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>UGLA Gantt Dev</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        background: linear-gradient(48deg, rgba(131,58,180,1) 0%, rgba(253,29,29,1) 54%, rgba(252,176,69,1) 100%);
+      }
+
+      #wrapper {
+        padding: 2em;
+        height: 100%;
+      }
+
+      .example_bar_class {
+        transition: background 0.1s ease-in;
+        cursor: pointer;
+      }
+
+      .example_bar_class:hover {
+        background: rgb(29, 5, 167) !important;
+      }
+
+      #container *::-webkit-scrollbar {
+        background-color: transparent;
+        width: 0;
+        height: 0;
+      }
+
+      #container > *::-webkit-scrollbar {
+        background-color: transparent;
+        width: 0.7em;
+        height: 0.7em;
+        border-radius: 1em;
+      }
+        
+      #container > *::-webkit-scrollbar-track {
+        border-radius: 1em;
+      }
+      
+      #container > *::-webkit-scrollbar-thumb {
+        background: rgb(201, 49, 49);
+        width: 1em;
+        height: 1em;
+        border-radius: 1em;
+      }
+    </style>
   </head>
   <body>
-    <div id="container"></div>
+    <div id="wrapper">
+      <div id="container"></div>
+    </div>
     <script type="module" src="/dev.js"></script>
   </body>
 </html>

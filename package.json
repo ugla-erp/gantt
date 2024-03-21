@@ -1,11 +1,12 @@
 {
-  "name": "ugla-gantt",
+  "name": "@ugla/gantt",
   "private": false,
-  "version": "0.0.2",
+  "version": "1.0.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ugla-erp/gantt.git"
   },
+  "docsURL": "https://docs.gantt.ugla.ua",
   "author": "LLC MOI Tech and Community",
   "license": "GPL-3.0-only",
   "bugs": {
@@ -23,24 +24,33 @@
   "files": [
     "dist"
   ],
-  "main": "./dist/ugla-gantt.umd.cjs",
-  "module": "./dist/ugla-gantt.js",
+  "main": "./dist/gantt.umd.cjs",
+  "module": "./dist/gantt.js",
   "exports": {
     ".": {
-      "import": "./dist/ugla-gantt.js",
-      "require": "./dist/ugla-gantt.umd.cjs"
+      "import": "./dist/gantt.js",
+      "require": "./dist/gantt.umd.cjs"
     }
   },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "docs": "npx jsdoc src/index.js -d docs -c jsdoc.json -P package.json"
+    "docs": "npx jsdoc src -c jsdoc.json -P package.json"
   },
   "devDependencies": {
     "clean-jsdoc-theme": "^4.2.17",
-    "jsdoc": "~4.0.2",
-    "lodash": "^4.17.21",
+    "jsdoc": "^4.0.2",
     "vite": "^5.1.6"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "luxon": "^3.4.4",
+    "pathfinding": "^0.4.18",
+    "string-template": "^1.0.0"
+  },
+  "description": "[![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://opensource.org/license/gpl-3-0)",
+  "directories": {
+    "doc": "docs"
   }
 }
