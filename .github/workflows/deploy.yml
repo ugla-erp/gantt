@@ -18,6 +18,8 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,9 +36,8 @@ jobs:
       - run: npm ci
       - run: npm run docs
       - run: npm run build
+      - run: npm login --scope=@ugla
       - run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - env:
           GH_TOKEN: ${{ github.token }}
