@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  setup:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -35,6 +35,8 @@ jobs:
       - run: npm run docs
       - run: npm run build
       - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - env:
           GH_TOKEN: ${{ github.token }}
