@@ -57,6 +57,22 @@ class ChartEvent
    */
   static BARHOVER = `${this.EVENT_NAMESPACE}:barhover`;
 
+  /**
+   * @type {String}
+   * @const
+   * @default `gantt:barmouseenter`
+   * @see {@link ChartEvent#event:ChartBarMouseenter|ChartBarMouseEnter}
+   */
+  static BARMOUSEENTER = `${this.EVENT_NAMESPACE}:barmouseenter`;
+
+  /**
+   * @type {String}
+   * @const
+   * @default `gantt:barmouseleave`
+   * @see {@link ChartEvent#event:ChartBarMouseleave|ChartBarMouseLeave}
+   */
+  static BARMOUSELEAVE = `${this.EVENT_NAMESPACE}:barmouseleave`;
+
   // /**
   //  * @type {String}
   //  * @const

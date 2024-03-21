@@ -5,7 +5,7 @@ import { DOCS_FULL_URL } from "./utils.js";
 import { DateTime, Interval } from "luxon";
 import format from "string-template";
 import ChartBar from "./bar.js";
-import { Grid, BestFirstFinder, Util } from "pathfinding";
+import { Grid, BestFirstFinder } from "pathfinding";
 
 /**
  * DateTime object from {@link https://moment.github.io/luxon|luxon}
@@ -229,7 +229,7 @@ class Chart
    * @constant
    * @type {Number}
    */
-  static BAR_HORIZONTAL_MARGIN = 0.3;
+  static BAR_HORIZONTAL_MARGIN = 0.8;
 
   constructor(warn = true)
   {
@@ -272,13 +272,14 @@ class Chart
    * 
    * @property {Object} customization.chart.bar
    * @property {String} [customization.chart.bar.class=``]
+   * @property {Boolean} [customization.chart.bar.highlightConnectedOnHover=true]
    * @property {CSSStyleDeclaration} [customization.chart.bar.style={}]
    * @property {Number} [customization.chart.bar.heightCoef=0.6] A number between 0 and 1 (0, 1]. Represents the percentage of row height that a bar will take up. The bar will be automatically centered vertically. If not between 0 and 1, will revert to default value
-   * @property {Number} [customization.chart.bar.horizontalMarginEm=0.3]
+   * @property {Number} [customization.chart.bar.horizontalMarginEm=0.8]
    * 
    * @property {Object} customization.connectingLines Configuration relating to the lines that are drawn onto the canvas, connecting {@link Bar} instances
-   * @property {Number} [customization.connectingLines.thickness=2]
-   * @property {String} [customization.connectingLines.color=`#000000`]
+   * @property {Number} [customization.connectingLines.thickness=3]
+   * @property {String} [customization.connectingLines.color=`#464646`]
    */
 
   /**
@@ -355,6 +356,7 @@ class Chart
         bar: {
           heightCoef: this.BAR_HEIGHT_COEFFICIENT,
           horizontalMarginEm: this.BAR_HORIZONTAL_MARGIN,
+          highlightConnectedOnHover: true,
           class: ``,
           style: {
             background: `red`,
@@ -363,7 +365,7 @@ class Chart
         },
       },
       connectingLines: {
-        thickness: 2,
+        thickness: 2.5,
         color: `#464646`,
       },
     },
@@ -402,7 +404,12 @@ class Chart
    */
   get chartCanvas()
   {
-    return this.chartBody?.childNodes?.[this.columnsNumber];
+    const canvas = this.chartBody?.childNodes?.[this.columnsNumber];
+
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+
+    return canvas;
   }
 
   /**
@@ -639,8 +646,8 @@ class Chart
     });
 
     const gridLastIDX = (this.columnsNumber) * 2;
-    const emptyRow = Array(this.chartHeight * 2).fill(0);
-    const matrix = [];
+    const emptyRow = Array(gridLastIDX).fill(0);
+    const matrix = [emptyRow];
 
     sorted.forEach(bar => {
       const length = ((bar.endIDX - bar.startIDX + 1) * 2) - 1;
@@ -804,22 +811,32 @@ class Chart
   }
 
   /**
+   * @param {ChartBar|undefined} forBar
    * @returns {Promise<Chart>}
    */
-  renderConnectingLines()
+  renderConnectingLines(forBar)
   {
+    if(forBar !== undefined && (forBar.connectedTo === undefined || forBar.connectedTo.length === 0))
+    {
+      forBar = undefined;
+    }
+
     const context = this.chartCanvas.getContext(`2d`);
+    context.clearRect(0, 0, this.chartCanvas.width, this.chartCanvas.height);
 
     context.lineCap = `round`;
     context.lineJoin = `round`;
     context.lineWidth = this.options.customization.connectingLines.thickness;
+    context.strokeStyle = this.options.customization.connectingLines.color;
+    context.fillStyle = this.options.customization.connectingLines.color;
 
     return new Promise(resolve => {
       const promises = [];
-      this.data.forEach(bar => {
+
+      (forBar === undefined ? this.data : [forBar]).forEach(bar => {
         bar.connectedTo?.forEach(barID => {
           this.barIDToDataMap.get(String(barID))?.forEach(barTo => {
-            promises.push(this.drawLineBetween(bar, barTo));
+            promises.push(this.drawLineBetween(context, bar, barTo));
           });
         });
       });
@@ -830,33 +847,137 @@ class Chart
 
   /**
    * @private
+   * @param {CanvasRenderingContext2D} context
    * @param {ChartBar} barFrom
    * @param {ChartBar} barTo
    * @returns {Promise<void>}
    */
-  drawLineBetween(barFrom, barTo)
+  drawLineBetween(context, barFrom, barTo)
   {
     return new Promise(resolve => {
       const from = this.getBarCoordinates(barFrom);
       const to = this.getBarCoordinates(barTo);
 
-      console.log(from);
+      const gridr2l = this.pathfindingGrid.clone();
+      const gridr2t = this.pathfindingGrid.clone();
+      const gridb2l = this.pathfindingGrid.clone();
+      const gridb2t = this.pathfindingGrid.clone();
 
-      console.log(from.right.x, from.right.y, to.left.x, to.left.y)
-      const r2l = this.pathfinder.findPath(from.right.x, from.right.y, to.left.x, to.left.y, this.pathfindingGrid);
+      const paths = [
+        { dir: `left`, path: this.pathfinder.findPath(from.right.x, from.right.y, to.left.x, to.left.y, gridr2l) }, // r2l
+        { dir: `top`, path: this.pathfinder.findPath(from.right.x, from.right.y, to.top.x, to.top.y, gridr2t) }, // r2t
+        { dir: `left`, path: this.pathfinder.findPath(from.bottom.x, from.bottom.y, to.left.x, to.left.y, gridb2l) }, // b2l
+        { dir: `top`, path: this.pathfinder.findPath(from.bottom.x, from.bottom.y, to.top.x, to.top.y, gridb2t) }, // b2t
+      ].filter(path => path.path.length > 0);
 
-      console.log(r2l)
+      paths.sort((a, b) => {
+        if(a.path.length === b.path.length)
+        {
+          return 0;
+        }
+        else if(a.path.length > b.path.length)
+        {
+          return 1;
+        }
+        else
+        {
+          return -1;
+        }
+      });
+
+      const shortest = paths[0];
+
+      context.beginPath();
+
+      context.moveTo(...this.pathGridCoordsToCanvasCoords(from.center));
+
+      shortest.path.forEach(coords => {
+        context.lineTo(...this.pathGridCoordsToCanvasCoords(coords));
+      });
+
+      const lastCoords = { x: shortest.path[shortest.path.length - 1][0], y: shortest.path[shortest.path.length - 1][1]};
+      const arrowTipPoint = { x: lastCoords.x, y: lastCoords.y };
+
+      if(shortest.dir === `left`)
+      {
+        arrowTipPoint.x += 0.18;
+      }
+      else
+      {
+        arrowTipPoint.y += 0.15;
+      }
+
+      context.lineTo(...this.pathGridCoordsToCanvasCoords(arrowTipPoint));
+
+      context.stroke();
+      context.closePath();
+
+      this.drawArrow(context, this.pathGridCoordsToCanvasCoords(lastCoords, true), this.pathGridCoordsToCanvasCoords(arrowTipPoint, true), 6);
 
       resolve();
     });
   }
 
   /**
+   * @private
+   * @param {{x: Number, y: Number}|Array<Number, Number>} coords
+   * @param {boolean} [asObject=false]
+   */
+  pathGridCoordsToCanvasCoords(coords, asObject = false)
+  {
+    if(!Array.isArray(coords))
+    {
+      coords = [ coords.x, coords.y ];
+    }
+
+    const result = [coords[0] * this.columnWidth / 2, coords[1] * this.rowHeight / 2];
+
+    return asObject ? { x: result[0], y: result[1] } : result;
+  }
+
+  /**
+   * @private
+   */
+  drawArrow(context, from, to, radius)
+  {
+    let x_center = to.x;
+    let y_center = to.y;
+  
+    let angle;
+    let x;
+    let y;
+  
+    context.beginPath();
+  
+    angle = Math.atan2(to.y - from.y, to.x - from.x)
+    x = radius * Math.cos(angle) + x_center;
+    y = radius * Math.sin(angle) + y_center;
+  
+    context.lineTo(x, y);
+  
+    angle += (1.0/3.0) * (2 * Math.PI)
+    x = radius * Math.cos(angle) + x_center;
+    y = radius * Math.sin(angle) + y_center;
+  
+    context.lineTo(x, y);
+  
+    angle += (1.0/3.0) * (2 * Math.PI)
+    x = radius *Math.cos(angle) + x_center;
+    y = radius *Math.sin(angle) + y_center;
+  
+    context.lineTo(x, y);
+  
+    context.closePath();
+  
+    context.fill();
+  }
+
+  /**
    * @param {ChartBar} bar
-   * @param {boolean} [inGridCoordinates=true]
+   * @param {boolean} [inPathFindingGridCoordinates=true]
    * @returns {ChartCoordinates}
    */
-  getBarCoordinates(bar, inGridCoordinates = true)
+  getBarCoordinates(bar, inPathFindingGridCoordinates = true)
   {
     /**
      * @type {ChartCoordinates}
@@ -886,7 +1007,7 @@ class Chart
     coords.left.y = coords.center.y;
     coords.left.x = bar.startIDX;
 
-    if(inGridCoordinates)
+    if(inPathFindingGridCoordinates)
     {
       coords.center.y *= 2;
       coords.top.y *= 2;
@@ -947,6 +1068,32 @@ class Chart
        * @see {@link ChartEvent#BARHOVER}
        */
       this.trigger(new ChartEvent(ChartEvent.BARHOVER, { chart: this, bar }, { bubbles: true, cancelable: true }));
+    });
+
+    barEl.addEventListener(`mouseenter`, (e) => {
+      /**
+       * <code>{ bubbles: <b>true</b>, cancellable: <b>true</b>, composed: <b>false</b> }</code>
+       * @event ChartEvent#ChartBarMouseEnter
+       * @type {Event}
+       * @property {Object} detail
+       * @property {Chart} detail.chart
+       * @property {ChartBar} detail.bar
+       * @see {@link ChartEvent#BARMOUSEENTER}
+       */
+      this.trigger(new ChartEvent(ChartEvent.BARMOUSEENTER, { chart: this, bar }, { bubbles: true, cancelable: true }));
+    });
+
+    barEl.addEventListener(`mouseleave`, (e) => {
+      /**
+       * <code>{ bubbles: <b>true</b>, cancellable: <b>true</b>, composed: <b>false</b> }</code>
+       * @event ChartEvent#ChartBarMouseLeave
+       * @type {Event}
+       * @property {Object} detail
+       * @property {Chart} detail.chart
+       * @property {ChartBar} detail.bar
+       * @see {@link ChartEvent#BARMOUSELEAVE}
+       */
+      this.trigger(new ChartEvent(ChartEvent.BARMOUSELEAVE, { chart: this, bar }, { bubbles: true, cancelable: true }));
     });
   }
 
@@ -1138,6 +1285,36 @@ class Chart
   trigger(event)
   {
     this.container.dispatchEvent(event);
+
+    if(event.type === ChartEvent.BARMOUSEENTER)
+    {
+      this.mouseEnterHandler(event.detail.bar);
+    }
+    else if(event.type === ChartEvent.BARMOUSELEAVE)
+    {
+      this.mouseLeaveHandler(event.detail.bar);
+    }
+  }
+
+  /**
+   * @private
+   * @param {ChartBar} bar
+   */
+  mouseEnterHandler(bar)
+  {
+    if(this.options.customization.chart.bar.highlightConnectedOnHover === true)
+    {
+      this.renderConnectingLines(bar);
+    }
+  }
+
+  /**
+   * @private
+   * @param {ChartBar} bar
+   */
+  mouseLeaveHandler(bar)
+  {
+    this.renderConnectingLines();
   }
 
   // PANNING
