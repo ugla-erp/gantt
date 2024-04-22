@@ -72,6 +72,14 @@ class ChartEvent
    * @see {@link ChartEvent#event:ChartBarMouseLeave|ChartBarMouseLeave}
    */
   static BARMOUSELEAVE = `${this.EVENT_NAMESPACE}:barmouseleave`;
+
+  /**
+   * @type {String}
+   * @const
+   * @default `gantt:barmove`
+   * @see {@link ChartEvent#event:ChartBarMove|ChartBarMove}
+   */
+  static BARMOVE = `${this.EVENT_NAMESPACE}:barmove`;
 }
 
 export default ChartEvent;

@@ -2,7 +2,12 @@ import { Chart, ChartEvent } from "./src";
 
 const container = document.getElementById(`container`);
 
-container.addEventListener(ChartEvent.BARCLICK, console.log);
+container.addEventListener(ChartEvent.BARMOVE, e => {
+  if(e.detail.to.startIDX < 4)
+  {
+    e.detail.revert();
+  }
+});
 
 Chart.get(container, { mode: `days`, customization: {
     chart: {

@@ -199,6 +199,15 @@ class Chart
    */
   columnsNumber = 0;
 
+  /**
+   * @readonly
+   * @type {Number}
+   */
+  get rowsNumber()
+  {
+    return this.data.length;
+  }
+
   // CONSTANTS
 
   /**
@@ -229,6 +238,9 @@ class Chart
    * @property {String} [locale=`en-gb`]
    * @property {String} [timezone=`local`]
    * @property {String} [attributePrefix=`data-ugla-gantt`]
+   * @property {Boolean} [editableBars=true]
+   * @property {Boolean} [panning=true]
+   * @property {Number} [panSpeed=1]
    * 
    * @property {Object} customization
    * 
@@ -236,8 +248,6 @@ class Chart
    * @property {CSSStyleDeclaration} [customization.container.style={}]
    * 
    * @property {Object} customization.chart
-   * @property {Boolean} [customization.chart.panning=true]
-   * @property {Number} [customization.chart.panSpeed=1]
    * @property {Number} [customization.chart.minWidthEm=2]
    * 
    * @property {Object} customization.chart.header
@@ -275,6 +285,9 @@ class Chart
     mode: `days`,
     locale: `en-gb`,
     timezone: `local`,
+    editableBars: true,
+    panning: true,
+    panSpeed: 1,
     customization: {
       container: {
         style: {
@@ -287,8 +300,6 @@ class Chart
       },
       chart: {
         minWidthEm: 2,
-        panning: true,
-        panSpeed: 1,
         header: {
           container: {
             style: {
@@ -554,9 +565,10 @@ class Chart
   /**
    * @private
    * @param {DateTime|String|Number|undefined} dt
+   * @param {String|undefined}
    * @returns {DateTime}
    */
-  castToDateTime(dt)
+  castToDateTime(dt, format)
   {
     if(typeof dt === `number`)
     {
@@ -564,9 +576,24 @@ class Chart
     }
     else if(typeof dt === `string`)
     {
-      let fromFormat = DateTime.fromFormat(dt, `yyyy-MM-dd HH:mm:ss`, { zone: `UTC`, locale: this.options.locale }).setZone(this.options.timezone);
+      let result = null;
+      if(format === undefined)
+      {
+        result = DateTime.fromFormat(dt, `yyyy-MM-dd HH:mm:ss`, { zone: `UTC`, locale: this.options.locale }).setZone(this.options.timezone);
+  
+        result = result.isValid ? result : DateTime.fromFormat(dt, `yyyy-MM-dd`, { zone: `UTC`, locale: this.options.locale }).setZone(this.options.timezone);
+      }
+      else
+      {
+        result = DateTime.fromFormat(dt, format, { zone: `UTC`, locale: this.options.locale }).setZone(this.options.timezone);
+      }
 
-      return fromFormat.isValid ? fromFormat : DateTime.fromFormat(dt, `yyyy-MM-dd`, { zone: `UTC`, locale: this.options.locale }).setZone(this.options.timezone);
+      if(!result.isValid)
+      {
+        throw new Error(`Invalid DateTime from '${dt}' with format '${format || `undefined`}'`);
+      }
+
+      return result;
     }
     else
     {
@@ -908,7 +935,7 @@ class Chart
   /**
    * @private
    * @param {{x: Number, y: Number}|Array<Number, Number>} coords
-   * @param {boolean} [asObject=false]
+   * @param {Boolean} [asObject=false]
    */
   pathGridCoordsToCanvasCoords(coords, asObject = false)
   {
@@ -1133,6 +1160,7 @@ class Chart
         this.container.replaceChildren(scrollBody);
 
         this.initPan();
+        this.initEditableBars();
         this.updateColumnWidth();
 
         const computedStyle = window.getComputedStyle(chartBody);
@@ -1249,7 +1277,7 @@ class Chart
    * 
    * @param {Number} x
    * @param {Number} y
-   * @param {boolean} [smooth=true]
+   * @param {Boolean} [smooth=true]
    */
   scrollTo(x, y, smooth = true)
   {
@@ -1303,44 +1331,55 @@ class Chart
     this.renderConnectingLines();
   }
 
-  // PANNING
-
-  #mouseIsDown = false;
-  #startY = 0;
-  #startScrollTop = 0;
-  #startX = 0;
-  #startScrollLeft = 0;
+  // MOVING BARS
 
   /**
    * @private
-   * @param {Element} chartBody 
    */
-  initPan()
+  #movingBarData = {
+    pointerIsDown: false,
+    bar: null,
+    startX: 0,
+    startY: 0,
+    startXBar: 0,
+    startYBar: 0,
+  };
+
+  /**
+   * @private
+   */
+  initEditableBars()
   {
-    if(!this.options.customization.chart.panning)
+    if(!this.options.editableBars)
     {
       return;
     }
 
-    this.chartBody.addEventListener(`mousedown`, (e) => {
-      this.#mouseIsDown = true;
+    this.chartBody.addEventListener(`pointerdown`, (e) => {
+      if(e.target.UGLAGanttBarData === undefined)
+      {
+        return;
+      }
 
-      this.#startY = e.pageY - this.chartBody.offsetTop;
-      this.#startScrollTop = this.chartBody.scrollTop;
-      this.#startX = e.pageX - this.chartScroll.offsetLeft;
-      this.#startScrollLeft = this.chartScroll.scrollLeft;
+      this.#movingBarData.pointerIsDown = true;
+      this.#movingBarData.bar = e.target.UGLAGanttBarData;
+
+      this.#movingBarData.startX = e.pageX - this.chartScroll.offsetLeft;
+      this.#movingBarData.startY = e.pageY - this.chartBody.offsetTop;
+      this.#movingBarData.startXBar = this.#movingBarData.bar.startIDX * this.columnWidth;
+      this.#movingBarData.startYBar = this.#movingBarData.bar.yIndex * this.rowHeight;
     });
 
-    this.chartBody.addEventListener(`mouseup`, () => {
-      this.#mouseIsDown = false;
+    this.chartBody.addEventListener(`pointerup`, () => {
+      this.#movingBarData.pointerIsDown = false;
     });
 
-    this.chartBody.addEventListener(`mouseleave`, () => {
-      this.#mouseIsDown = false;
+    this.chartBody.addEventListener(`pointerleave`, () => {
+      this.#movingBarData.pointerIsDown = false;
     });
 
-    this.chartBody.addEventListener(`mousemove`, (e) => {
-      if(!this.#mouseIsDown)
+    this.chartBody.addEventListener(`pointermove`, (e) => {
+      if(!this.#movingBarData.pointerIsDown)
       {
         return;
       }
@@ -1348,13 +1387,147 @@ class Chart
       e.preventDefault();
 
       const x = e.pageX - this.chartScroll.offsetLeft;
-      const deltaX = (x - this.#startX) * this.options.customization.chart.panSpeed;
+      const deltaX = x - this.#movingBarData.startX;
 
-      const y = e.pageY - this.chartScroll.offsetLeft;
-      const deltaY = (y - this.#startY) * this.options.customization.chart.panSpeed;
+      const y = e.pageY - this.chartBody.offsetTop;
+      const deltaY = y - this.#movingBarData.startY;
 
-      this.chartScroll.scrollLeft = this.#startScrollLeft - deltaX;
-      this.chartBody.scrollTop = this.#startScrollTop - deltaY;
+      const xIndex = Math.min(this.columnsNumber - 1 - (this.#movingBarData.bar.endIDX - this.#movingBarData.bar.startIDX), Math.max(0, Math.round((this.#movingBarData.startXBar + deltaX) / this.columnWidth)));
+      const yIndex = Math.min(this.rowsNumber - 1, Math.max(0, Math.round((this.#movingBarData.startYBar + deltaY) / this.rowHeight)));
+
+      if(this.#movingBarData.bar.startIDX != xIndex)
+      {
+        const deltaXIndex = xIndex - this.#movingBarData.bar.startIDX;
+        const interval = this.multipliedInterval(deltaXIndex);
+
+        const from = {
+          startIDX: this.#movingBarData.bar.startIDX,
+          endIDX: this.#movingBarData.bar.endIDX,
+          start: this.#movingBarData.bar.start,
+          end: this.#movingBarData.bar.end,
+        };
+
+        this.#movingBarData.bar.endIDX = xIndex + (this.#movingBarData.bar.endIDX - this.#movingBarData.bar.startIDX);
+        this.#movingBarData.bar.startIDX = xIndex;
+
+        this.#movingBarData.bar.start = this.#movingBarData.bar.start.plus(interval);
+        this.#movingBarData.bar.end = this.#movingBarData.bar.end.plus(interval);
+
+        const to = {
+          startIDX: this.#movingBarData.bar.startIDX,
+          endIDX: this.#movingBarData.bar.endIDX,
+          start: this.#movingBarData.bar.start,
+          end: this.#movingBarData.bar.end,
+        };
+
+        const revert = () => {
+          this.#movingBarData.bar.startIDX = from.startIDX;
+          this.#movingBarData.bar.endIDX = from.endIDX;
+          this.#movingBarData.bar.start = from.start;
+          this.#movingBarData.bar.end = from.end;
+          return this.renderBars();
+        };
+
+        this.renderBars();
+
+        /**
+       * <code>{ bubbles: <b>true</b>, cancellable: <b>true</b>, composed: <b>false</b> }</code>
+       * @event ChartEvent#ChartBarMove
+       * @type {Event}
+       * @property {Object} detail
+       * @property {Chart} detail.chart
+       * @property {ChartBar} detail.bar
+       * @property {Object} detail.from
+       * @property {Number} detail.from.startIDX
+       * @property {Number} detail.from.endIDX
+       * @property {external:DateTime} detail.from.start
+       * @property {external:DateTime} detail.from.end
+       * @property {Object} detail.to
+       * @property {Number} detail.to.startIDX
+       * @property {Number} detail.to.endIDX
+       * @property {external:DateTime} detail.to.start
+       * @property {external:DateTime} detail.to.end
+       * @property {Function<Promise<Chart>>} detail.revert
+       * @see {@link ChartEvent#BARMOVE}
+       */
+      this.trigger(new ChartEvent(ChartEvent.BARMOVE, { chart: this, bar: this.#movingBarData.bar, from, to, revert }, { bubbles: true, cancelable: true }));
+      }
+    });
+  }
+
+  /**
+   * @private
+   */
+  multipliedInterval(multiplier)
+  {
+    const newInterval = {};
+    Object.keys(this.options.mode.interval).forEach(key => {
+      newInterval[key] = this.options.mode.interval[key] * multiplier;
+    });
+    return newInterval;
+  }
+
+  // PANNING
+
+  /**
+   * @private
+   */
+  #panningData = {
+    mouseIsDown: false,
+    startY: 0,
+    startScrollTop: 0,
+    startX: 0,
+    startScrollLeft: 0,
+  };
+
+  /**
+   * @private
+   */
+  initPan()
+  {
+    if(!this.options.panning)
+    {
+      return;
+    }
+
+    this.chartBody.addEventListener(`mousedown`, (e) => {
+      if(!(e.target instanceof HTMLCanvasElement))
+      {
+        return;
+      }
+
+      this.#panningData.mouseIsDown = true;
+
+      this.#panningData.startY = e.pageY - this.chartBody.offsetTop;
+      this.#panningData.startScrollTop = this.chartBody.scrollTop;
+      this.#panningData.startX = e.pageX - this.chartScroll.offsetLeft;
+      this.#panningData.startScrollLeft = this.chartScroll.scrollLeft;
+    });
+
+    this.chartBody.addEventListener(`mouseup`, () => {
+      this.#panningData.mouseIsDown = false;
+    });
+
+    this.chartBody.addEventListener(`mouseleave`, () => {
+      this.#panningData.mouseIsDown = false;
+    });
+
+    this.chartBody.addEventListener(`mousemove`, (e) => {
+      if(!this.#panningData.mouseIsDown)
+      {
+        return;
+      }
+
+      e.preventDefault();
+
+      const x = e.pageX - this.chartScroll.offsetLeft;
+      const deltaX = (x - this.#panningData.startX) * this.options.panSpeed;
+
+      const y = e.pageY - this.chartBody.offsetTop;
+      const deltaY = (y - this.#panningData.startY) * this.options.panSpeed;
+
+      this.chartScroll.scrollLeft = this.#panningData.startScrollLeft - deltaX;
+      this.chartBody.scrollTop = this.#panningData.startScrollTop - deltaY;
     });
   }
 }
