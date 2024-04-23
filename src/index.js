@@ -122,13 +122,13 @@ class Chart
   options;
 
   /**
-   * @type {external:DateTime}
+   * @type {external:DateTime|Number}
    * @readonly
    */
   start;
 
   /**
-   * @type {external:DateTime}
+   * @type {external:DateTime|Number}
    * @readonly
    */
   end;
@@ -528,6 +528,8 @@ class Chart
       }
     }
 
+    this.options.mode.index = this.options.mode.index === undefined ? false : this.options.mode.index;
+
     /**
      * Bar height coefficient check
      */
@@ -549,12 +551,40 @@ class Chart
   {
     if(start !== undefined)
     {
-      this.start = this.castToDateTime(start);
+      if(this.options.mode.index === true)
+      {
+        if(typeof start === `number` && (start = parseInt(start)) >= 0)
+        {
+          this.start = start;
+        }
+        else
+        {
+          throw new Error(`In Index mode 'start' parameter must be an unsigned integer`);
+        }
+      }
+      else
+      {
+        this.start = this.castToDateTime(start);
+      }
     }
 
     if(end !== undefined)
     {
-      this.end = this.castToDateTime(end);
+      if(this.options.mode.index === true)
+      {
+        if(typeof end === `number` && (end = parseInt(end)) >= 0)
+        {
+          this.end = end;
+        }
+        else
+        {
+          throw new Error(`In Index mode 'end' parameter must be an unsigned integer`);
+        }
+      }
+      else
+      {
+        this.end = this.castToDateTime(end);
+      }
     }
 
     this.reindexData();
@@ -610,10 +640,14 @@ class Chart
 
     if(this.data !== undefined)
     {
-      this.data.forEach(bar => {
-        bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
-        bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
-      });
+      if(this.options.mode.index !== true)
+      {
+        this.data.forEach(bar => {
+          bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+          bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+        });
+      }
+
       this.calculateChartHeight();
       this.buildPathfindingGrid();
     }
@@ -625,8 +659,20 @@ class Chart
   buildFormatToColumnMap()
   {
     this.formatToColumnMap.clear();
-    const interval = Interval.fromDateTimes(this.start, this.end);
-    interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(dt.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format), idx));
+
+    if(this.options.mode.index === true)
+    {
+      const interval = ((typeof this.options.mode.interval === `number`) ? parseInt(this.options.mode.interval) : 1);
+      for(let i = this.start; i <= this.end; i += interval)
+      {
+        this.formatToColumnMap.set(i, i);
+      }
+    }
+    else
+    {
+      const interval = Interval.fromDateTimes(this.start, this.end);
+      interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(dt.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format), idx));
+    }
   }
 
   /**
@@ -722,19 +768,26 @@ class Chart
     const sorted = this.data.toSorted((a, b) => {
       if(a.startIDX === b.startIDX)
       {
-        const aMillis = a.start.toMillis();
-        const bMillis = b.start.toMillis();
-        if(aMillis === bMillis)
+        if(this.options.mode.index === true)
         {
           return 0;
         }
-        else if(aMillis > bMillis)
-        {
-          return -1;
-        }
         else
         {
-          return 1;
+          const aMillis = a.start.toMillis();
+          const bMillis = b.start.toMillis();
+          if(aMillis === bMillis)
+          {
+            return 0;
+          }
+          else if(aMillis > bMillis)
+          {
+            return -1;
+          }
+          else
+          {
+            return 1;
+          }
         }
       }
       else if(a.startIDX > b.startIDX)
@@ -820,7 +873,7 @@ class Chart
         await this.renderConnectingLines();
 
         resolve(this);
-      });
+      }).catch(console.error);
     });
   }
 
@@ -855,7 +908,7 @@ class Chart
         });
       });
 
-      Promise.all(promises).then(() => resolve(this));
+      Promise.all(promises).then(() => resolve(this)).catch(console.error);
     });
   }
 
@@ -1118,14 +1171,36 @@ class Chart
   {
     if(bar.startIDX === undefined)
     {
-      bar.start = this.castToDateTime(bar.start);
-      bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+      if(this.options.mode.index === true)
+      {
+        throw new Error(`In Index mode each bar must have 'startIDX' property as unsigned integer`);
+      }
+      else
+      {
+        bar.start = this.castToDateTime(bar.start);
+        bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+      }
+    }
+    else if(typeof bar.endIDX !== `number` && this.options.mode.index === true)
+    {
+      throw new Error(`In Index mode each bar must have 'endIDX' property as unsigned integer`);
     }
 
     if(bar.endIDX === undefined)
     {
-      bar.end = this.castToDateTime(bar.end);
-      bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+      if(this.options.mode.index === true)
+      {
+        throw new Error(`In Index mode each bar must have 'endIDX' property as unsigned integer`);
+      }
+      else
+      {
+        bar.end = this.castToDateTime(bar.end);
+        bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+      }
+    }
+    else if(typeof bar.endIDX !== `number` && this.options.mode.index === true)
+    {
+      throw new Error(`In Index mode each bar must have 'endIDX' property as unsigned integer`);
     }
   }
 
@@ -1196,8 +1271,21 @@ class Chart
   renderChartTemplate()
   {
     return new Promise(resolve => {
-      const interval = Interval.fromDateTimes(this.start, this.end);
-      const promises = interval.splitBy(this.options.mode.interval).map((dt, idx) => this.renderColumn(dt.start, idx));
+      let promises = [];
+
+      if(this.options.mode.index === true)
+      {
+        const interval = ((typeof this.options.mode.interval === `number`) ? parseInt(this.options.mode.interval) : 1);
+        for(let i = this.start; i <= this.end; i += interval)
+        {
+          promises.push(this.renderColumn(i, i));
+        }
+      }
+      else
+      {
+        const interval = Interval.fromDateTimes(this.start, this.end);
+        promises = interval.splitBy(this.options.mode.interval).map((dt, idx) => this.renderColumn(dt.start, idx));
+      }
 
       Promise.all(promises).then(columns => {
         const chartHeader = document.createElement(`div`);
@@ -1252,13 +1340,13 @@ class Chart
         }
 
         resolve({ chartHeader, chartBody });
-      });
+      }).catch(console.error);
     });
   }
 
   /**
    * @private
-   * @param {DateTime} dt
+   * @param {DateTime|Number} dt
    * @param {Number} idx
    * @returns {Promise<Element>}
    */
@@ -1267,7 +1355,7 @@ class Chart
     return new Promise(resolve => {
       const headerContainer = document.createElement(`div`);
       Object.assign(headerContainer.style, this.options.customization.chart.header.style);
-      headerContainer.innerHTML = format(this.options.customization.chart.header.template, { formatted: dt.toFormat(this.options.mode.format), idx });
+      headerContainer.innerHTML = format(this.options.customization.chart.header.template, { formatted: this.options.mode.index === true ? idx : dt.toFormat(this.options.mode.format), idx });
 
       resolve(headerContainer);
     });
@@ -1410,8 +1498,8 @@ class Chart
         this.#movingBarData.bar.endIDX = xIndex + (this.#movingBarData.bar.endIDX - this.#movingBarData.bar.startIDX);
         this.#movingBarData.bar.startIDX = xIndex;
 
-        this.#movingBarData.bar.start = this.#movingBarData.bar.start.plus(interval);
-        this.#movingBarData.bar.end = this.#movingBarData.bar.end.plus(interval);
+        this.#movingBarData.bar.start = this.#movingBarData.bar.start?.plus(interval);
+        this.#movingBarData.bar.end = this.#movingBarData.bar.end?.plus(interval);
 
         const to = {
           startIDX: this.#movingBarData.bar.startIDX,
@@ -1447,7 +1535,7 @@ class Chart
        * @property {Number} detail.to.endIDX
        * @property {external:DateTime} detail.to.start
        * @property {external:DateTime} detail.to.end
-       * @property {Function<Promise<Chart>>} detail.revert
+       * @property {function():Promise<Chart>} detail.revert
        * @see {@link ChartEvent#BARMOVE}
        */
       this.trigger(new ChartEvent(ChartEvent.BARMOVE, { chart: this, bar: this.#movingBarData.bar, from, to, revert }, { bubbles: true, cancelable: true }));
