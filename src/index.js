@@ -643,8 +643,16 @@ class Chart
       if(this.options.mode.index !== true)
       {
         this.data.forEach(bar => {
-          bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
-          bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+          if(this.options.mode.idxFormat !== undefined)
+          {
+            bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.idxFormat));
+            bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.idxFormat));
+          }
+          else
+          {
+            bar.startIDX = this.formatToColumnMap.get(((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.start, idx) : bar.start.toFormat(this.options.mode.format));
+            bar.endIDX = this.formatToColumnMap.get(((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.end, idx) : bar.end.toFormat(this.options.mode.format));
+          }
         });
       }
 
@@ -671,7 +679,15 @@ class Chart
     else
     {
       const interval = Interval.fromDateTimes(this.start, this.end);
-      interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(dt.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format), idx));
+  
+      if(this.options.mode.idxFormat !== undefined)
+      {
+        interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(dt.start.toFormat(this.options.mode.idxFormat), idx));
+      }
+      else
+      {
+        interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, dt.start, idx) : dt.start.toFormat(this.options.mode.format), idx));
+      }
     }
   }
 
@@ -830,6 +846,11 @@ class Chart
 
             this.setAttribute(`bar-id`, bar.id, barEl);
             this.setAttribute(`bar-uid`, uid, barEl);
+          }
+
+          if(bar.content !== ``)
+          {
+            barEl[bar.contentIsHTML ? `innerHTML` : `textContent`] = bar.content;
           }
 
           barEl.className = this.options.customization.chart.bar.class;
@@ -1177,8 +1198,24 @@ class Chart
       }
       else
       {
+        let idxFormatted = ``;
         bar.start = this.castToDateTime(bar.start);
-        bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+    
+        if(this.options.mode.idxFormat !== undefined)
+        {
+          idxFormatted = bar.start.toFormat(this.options.mode.idxFormat);
+          bar.startIDX = this.formatToColumnMap.get(idxFormatted);
+        }
+        else
+        {
+          idxFormatted = ((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.start, idx) : bar.start.toFormat(this.options.mode.format);
+          bar.startIDX = this.formatToColumnMap.get(idxFormatted);
+        }
+
+        if(bar.startIDX === undefined)
+        {
+          bar.startIDX = this.findLowerBoundary(idxFormatted);
+        }
       }
     }
     else if(typeof bar.endIDX !== `number` && this.options.mode.index === true)
@@ -1194,14 +1231,49 @@ class Chart
       }
       else
       {
+        let idxFormatted = ``;
         bar.end = this.castToDateTime(bar.end);
-        bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+
+        if(this.options.mode.idxFormat !== undefined)
+        {
+          idxFormatted = bar.end.toFormat(this.options.mode.idxFormat);
+          bar.endIDX = this.formatToColumnMap.get(idxFormatted);
+        }
+        else
+        {
+          idxFormatted = ((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.end, idx) : bar.end.toFormat(this.options.mode.format);
+          bar.endIDX = this.formatToColumnMap.get(idxFormatted);
+        }
+
+        if(bar.endIDX === undefined)
+        {
+          bar.endIDX = this.findLowerBoundary(idxFormatted);
+        }
       }
     }
     else if(typeof bar.endIDX !== `number` && this.options.mode.index === true)
     {
       throw new Error(`In Index mode each bar must have 'endIDX' property as unsigned integer`);
     }
+  }
+
+  /**
+   * @private
+   * @param {String} idxFormatted 
+   */
+  findLowerBoundary(idxFormatted)
+  {
+    let found = null;
+
+    Array.from(this.formatToColumnMap.keys()).reverse().some(formatted => {
+      if(formatted < idxFormatted)
+      {
+        found = this.formatToColumnMap.get(formatted);
+        return true;
+      }
+    });
+
+    return found;
   }
 
   /**
@@ -1355,7 +1427,7 @@ class Chart
     return new Promise(resolve => {
       const headerContainer = document.createElement(`div`);
       Object.assign(headerContainer.style, this.options.customization.chart.header.style);
-      headerContainer.innerHTML = format(this.options.customization.chart.header.template, { formatted: this.options.mode.index === true ? idx : dt.toFormat(this.options.mode.format), idx });
+      headerContainer.innerHTML = format(this.options.customization.chart.header.template, { formatted: this.options.mode.index === true ? idx : (((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, dt, idx) : dt.toFormat(this.options.mode.format)), idx });
 
       resolve(headerContainer);
     });
