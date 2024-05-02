@@ -24,13 +24,23 @@ class ChartMode
   idxFormat;
 
   /**
+   * Is mode an Index. If `true`, DateTime will not be used, only indices
+   * @type {Boolean}
+   */
+  index = false;
+
+  /**
    * Available keys:
    * 
-   * <p><code>minutes_5</code> | <code>minutes_10</code> | <code>minutes_15</code> | <code>minutes_30</code> | <code>hours</code> | <code>hours_3</code> | <code>hours_6</code> | <code>hours_12</code> | <code>days</code> | <code>daysOfTheWeek</code> | <code>weeks</code> | <code>weeks_2</code> | <code>months</code> | <code>months_6</code> | <code>quarters</code> | <code>years</code> | <code>years_3</code> | <code>years_5</code> | <code>years_10</code> | <code>years_25</code> | <code>years_50</code> | <code>years_100</code></p>
+   * <p><code>index</code> | <code>minutes_5</code> | <code>minutes_10</code> | <code>minutes_15</code> | <code>minutes_30</code> | <code>hours</code> | <code>hours_3</code> | <code>hours_6</code> | <code>hours_12</code> | <code>days</code> | <code>daysOfTheWeek</code> | <code>weeks</code> | <code>weeks_2</code> | <code>months</code> | <code>months_6</code> | <code>quarters</code> | <code>years</code> | <code>years_3</code> | <code>years_5</code> | <code>years_10</code> | <code>years_25</code> | <code>years_50</code> | <code>years_100</code></p>
    * @type {Object}
    * @const
    */
   static DEFAULTS = {
+    index: {
+      interval: 1,
+      index: true,
+    },
     minutes_5: {
       interval: { minutes: 5 },
       format: `T`,
