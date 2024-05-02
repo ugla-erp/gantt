@@ -4,7 +4,11 @@ const container = document.getElementById(`container`);
 
 container.addEventListener(ChartEvent.BARCLICK, console.log);
 
-Chart.get(container, { mode: `days`, customization: {
+Chart.get(container, { mode: {
+  interval: { hours: 5 },
+  format: `T`,
+  idxFormat: `yyyy-MM-dd T`
+}, customization: {
     chart: {
       bar: {
         heightCoef: 0.6,
@@ -18,7 +22,7 @@ Chart.get(container, { mode: `days`, customization: {
       // color: `red`
     },
   }
-}, `2024-03-01`, `2024-03-31`, [
+}, `2024-03-01`, `2024-03-10`, [
   {
     id: 3123,
     start: `2024-03-06`,

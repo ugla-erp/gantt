@@ -584,8 +584,16 @@ class Chart
     if(this.data !== undefined)
     {
       this.data.forEach(bar => {
-        bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
-        bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+        if(this.options.mode.idxFormat !== undefined)
+        {
+          bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.idxFormat));
+          bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.idxFormat));
+        }
+        else
+        {
+          bar.startIDX = this.formatToColumnMap.get(((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.start, idx) : bar.start.toFormat(this.options.mode.format));
+          bar.endIDX = this.formatToColumnMap.get(((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.end, idx) : bar.end.toFormat(this.options.mode.format));
+        }
       });
       this.calculateChartHeight();
       this.buildPathfindingGrid();
@@ -599,7 +607,15 @@ class Chart
   {
     this.formatToColumnMap.clear();
     const interval = Interval.fromDateTimes(this.start, this.end);
-    interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(dt.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format), idx));
+
+    if(this.options.mode.idxFormat !== undefined)
+    {
+      interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(dt.start.toFormat(this.options.mode.idxFormat), idx));
+    }
+    else
+    {
+      interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, dt.start, idx) : dt.start.toFormat(this.options.mode.format), idx));
+    }
   }
 
   /**
@@ -750,6 +766,11 @@ class Chart
 
             this.setAttribute(`bar-id`, bar.id, barEl);
             this.setAttribute(`bar-uid`, uid, barEl);
+          }
+
+          if(bar.content !== ``)
+          {
+            barEl[bar.contentIsHTML ? `innerHTML` : `textContent`] = bar.content;
           }
 
           barEl.className = this.options.customization.chart.bar.class;
@@ -1091,15 +1112,74 @@ class Chart
   {
     if(bar.startIDX === undefined)
     {
+      let idxFormatted = ``;
       bar.start = this.castToDateTime(bar.start);
-      bar.startIDX = this.formatToColumnMap.get(bar.start.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+
+      if(this.options.mode.idxFormat !== undefined)
+      {
+        idxFormatted = bar.start.toFormat(this.options.mode.idxFormat);
+        bar.startIDX = this.formatToColumnMap.get(idxFormatted);
+      }
+      else
+      {
+        idxFormatted = ((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.start, idx) : bar.start.toFormat(this.options.mode.format);
+        bar.startIDX = this.formatToColumnMap.get(idxFormatted);
+      }
+
+      if(bar.startIDX === undefined)
+      {
+        bar.startIDX = this.findLowerBoundary(idxFormatted);
+      }
     }
 
     if(bar.endIDX === undefined)
     {
+      let idxFormatted = ``;
       bar.end = this.castToDateTime(bar.end);
-      bar.endIDX = this.formatToColumnMap.get(bar.end.toFormat(this.options.mode.idxFormat ?? this.options.mode.format));
+
+      if(this.options.mode.idxFormat !== undefined)
+      {
+        idxFormatted = bar.end.toFormat(this.options.mode.idxFormat);
+        bar.endIDX = this.formatToColumnMap.get(idxFormatted);
+      }
+      else
+      {
+        idxFormatted = ((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.end, idx) : bar.end.toFormat(this.options.mode.format);
+        bar.endIDX = this.formatToColumnMap.get(idxFormatted);
+      }
+
+      if(bar.endIDX === undefined)
+      {
+        bar.endIDX = this.findLowerBoundary(idxFormatted);
+      }
     }
+  }
+
+  /**
+   * @private
+   * @param {String} idxFormatted 
+   */
+  findLowerBoundary(idxFormatted)
+  {
+    let found = null;
+
+    Array.from(this.formatToColumnMap.keys()).reverse().some(formatted => {
+      if(formatted < idxFormatted)
+      {
+        found = this.formatToColumnMap.get(formatted);
+        return true;
+      }
+    });
+
+    return found;
+  }
+
+  /**
+   * @private
+   */
+  interpolate()
+  {
+
   }
 
   /**
@@ -1239,7 +1319,7 @@ class Chart
     return new Promise(resolve => {
       const headerContainer = document.createElement(`div`);
       Object.assign(headerContainer.style, this.options.customization.chart.header.style);
-      headerContainer.innerHTML = format(this.options.customization.chart.header.template, { formatted: dt.toFormat(this.options.mode.format), idx });
+      headerContainer.innerHTML = format(this.options.customization.chart.header.template, { formatted: ((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, dt, idx) : dt.toFormat(this.options.mode.format), idx });
 
       resolve(headerContainer);
     });
@@ -1350,7 +1430,7 @@ class Chart
       const x = e.pageX - this.chartScroll.offsetLeft;
       const deltaX = (x - this.#startX) * this.options.customization.chart.panSpeed;
 
-      const y = e.pageY - this.chartScroll.offsetLeft;
+      const y = e.pageY - this.chartBody.offsetTop;
       const deltaY = (y - this.#startY) * this.options.customization.chart.panSpeed;
 
       this.chartScroll.scrollLeft = this.#startScrollLeft - deltaX;

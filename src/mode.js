@@ -11,7 +11,7 @@ class ChartMode
   interval;
 
   /**
-   * @type {String}
+   * @type {String|function(external:DateTime, Number):String} - `this` is @see {@link Chart}, first argument is Luxon DateTime, second is index of the column
    * @see {@link https://moment.github.io/luxon/#/formatting?id=table-of-tokens|Luxon - Table of tokens}
    */
   format;
