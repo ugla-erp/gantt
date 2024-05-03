@@ -497,7 +497,11 @@ class Chart
         options = {};
       }
 
+      const newMode = options.mode;
+
       options = merge(this.options, options);
+
+      options.mode = newMode;
 
       this.options = options;
       this.processOptions();
@@ -650,8 +654,8 @@ class Chart
           }
           else
           {
-            bar.startIDX = this.formatToColumnMap.get(((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.start, idx) : bar.start.toFormat(this.options.mode.format));
-            bar.endIDX = this.formatToColumnMap.get(((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.end, idx) : bar.end.toFormat(this.options.mode.format));
+            bar.startIDX = this.formatToColumnMap.get(((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, this.start, this) : bar.start.toFormat(this.options.mode.format));
+            bar.endIDX = this.formatToColumnMap.get(((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.end, this) : bar.end.toFormat(this.options.mode.format));
           }
         });
       }
@@ -686,7 +690,7 @@ class Chart
       }
       else
       {
-        interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, dt.start, idx) : dt.start.toFormat(this.options.mode.format), idx));
+        interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, dt.start, this) : dt.start.toFormat(this.options.mode.format), idx));
       }
     }
   }
@@ -1200,7 +1204,7 @@ class Chart
       {
         let idxFormatted = ``;
         bar.start = this.castToDateTime(bar.start);
-    
+
         if(this.options.mode.idxFormat !== undefined)
         {
           idxFormatted = bar.start.toFormat(this.options.mode.idxFormat);
@@ -1208,7 +1212,7 @@ class Chart
         }
         else
         {
-          idxFormatted = ((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.start, idx) : bar.start.toFormat(this.options.mode.format);
+          idxFormatted = ((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.start, this) : bar.start.toFormat(this.options.mode.format);
           bar.startIDX = this.formatToColumnMap.get(idxFormatted);
         }
 
@@ -1241,7 +1245,7 @@ class Chart
         }
         else
         {
-          idxFormatted = ((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.end, idx) : bar.end.toFormat(this.options.mode.format);
+          idxFormatted = ((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, bar.end, this) : bar.end.toFormat(this.options.mode.format);
           bar.endIDX = this.formatToColumnMap.get(idxFormatted);
         }
 
@@ -1427,7 +1431,7 @@ class Chart
     return new Promise(resolve => {
       const headerContainer = document.createElement(`div`);
       Object.assign(headerContainer.style, this.options.customization.chart.header.style);
-      headerContainer.innerHTML = format(this.options.customization.chart.header.template, { formatted: this.options.mode.index === true ? idx : (((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, dt, idx) : dt.toFormat(this.options.mode.format)), idx });
+      headerContainer.innerHTML = format(this.options.customization.chart.header.template, { formatted: this.options.mode.index === true ? idx : (((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, dt, this) : dt.toFormat(this.options.mode.format)), idx });
 
       resolve(headerContainer);
     });
