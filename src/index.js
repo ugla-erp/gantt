@@ -266,7 +266,7 @@ class Chart
    * 
    * @property {Object} customization.chart.bar
    * @property {String} [customization.chart.bar.class=``]
-   * @property {Boolean} [customization.chart.bar.highlightConnectedOnHover=true]
+   * @property {Boolean} [customization.chart.bar.highlightConnectedOnHover=false]
    * @property {CSSStyleDeclaration} [customization.chart.bar.style={}]
    * @property {Number} [customization.chart.bar.heightCoef=0.6] A number between 0 and 1 (0, 1]. Represents the percentage of row height that a bar will take up. The bar will be automatically centered vertically. If not between 0 and 1, will revert to default value
    * @property {Number} [customization.chart.bar.horizontalMarginEm=0.8]
@@ -354,7 +354,7 @@ class Chart
         bar: {
           heightCoef: this.BAR_HEIGHT_COEFFICIENT,
           horizontalMarginEm: this.BAR_HORIZONTAL_MARGIN,
-          highlightConnectedOnHover: true,
+          highlightConnectedOnHover: false,
           class: ``,
           style: {
             background: `red`,
@@ -480,6 +480,8 @@ class Chart
         Object.assign(column.style, { width: trueColumnWidthEm });
         Object.assign(chartBody.childNodes[idx].style, { minWidth: `${trueColumnWidth / bodyColumnFontSize}em` });
       });
+
+      this.chartCanvas.style.height = `${this.chartHeight * this.rowHeight}px`;
     }
   }
 
@@ -1376,6 +1378,7 @@ class Chart
             overflow: `hidden`,
             width: `min-content`,
             minWidth: `100%`,
+            flexShrink: 0,
           });
 
           chartHeader.append(...columns);
@@ -1492,7 +1495,10 @@ class Chart
    */
   mouseLeaveHandler(bar)
   {
-    this.renderConnectingLines();
+    if(this.options.customization.chart.bar.highlightConnectedOnHover === true)
+    {
+      this.renderConnectingLines();
+    }
   }
 
   // MOVING BARS
