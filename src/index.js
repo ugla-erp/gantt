@@ -286,6 +286,7 @@ class Chart
     locale: `en-gb`,
     timezone: `local`,
     editableBars: true,
+    sortBarsByStartIDX: true,
     panning: true,
     panSpeed: 1,
     customization: {
@@ -787,7 +788,7 @@ class Chart
    */
   calculateChartHeight()
   {
-    const sorted = this.data.toSorted((a, b) => {
+    const sorted = this.options.sortBarsByStartIDX ? this.data.toSorted((a, b) => {
       if(a.startIDX === b.startIDX)
       {
         if(this.options.mode.index === true)
@@ -820,7 +821,7 @@ class Chart
       {
         return -1;
       }
-    });
+    }) : this.data;
 
     sorted.forEach((bar, idx) => {
       bar.yIndex = idx;
