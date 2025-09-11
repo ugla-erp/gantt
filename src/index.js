@@ -1456,7 +1456,7 @@ class Chart
 
     const yOldScrollBehavior = this.chartBody.style.scrollBehavior;
     this.chartBody.style.scrollBehavior = smooth ? `smooth` : `auto`;
-    this.chartBody.scrollLeft = y;
+    this.chartBody.scrollTop = y;
     this.chartBody.style.scrollBehavior = yOldScrollBehavior;
   }
 
