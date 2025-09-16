@@ -689,11 +689,11 @@ class Chart
   
       if(this.options.mode.idxFormat !== undefined)
       {
-        interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(dt.start.toFormat(this.options.mode.idxFormat), idx));
+        this.#splitInterval(interval).map((dt, idx) => this.formatToColumnMap.set(dt.start.toFormat(this.options.mode.idxFormat), idx));
       }
       else
       {
-        interval.splitBy(this.options.mode.interval).map((dt, idx) => this.formatToColumnMap.set(((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, dt.start, this) : dt.start.toFormat(this.options.mode.format), idx));
+        this.#splitInterval(interval).map((dt, idx) => this.formatToColumnMap.set(((typeof this.options.mode.format) === `function`) ? this.options.mode.format.call(this, dt.start, this) : dt.start.toFormat(this.options.mode.format), idx));
       }
     }
   }
@@ -1362,8 +1362,9 @@ class Chart
       }
       else
       {
+
         const interval = Interval.fromDateTimes(this.start, this.end);
-        promises = interval.splitBy(this.options.mode.interval).map((dt, idx) => this.renderColumn(dt.start, idx));
+        promises = this.#splitInterval(interval).map((dt, idx) => this.renderColumn(dt.start, idx));
       }
 
       Promise.all(promises).then(columns => {
@@ -1700,6 +1701,36 @@ class Chart
       this.chartScroll.scrollLeft = this.#panningData.startScrollLeft - deltaX;
       this.chartBody.scrollTop = this.#panningData.startScrollTop - deltaY;
     });
+  }
+
+  #splitInterval(interval)
+  {
+    let parts = [];
+    let cursor = interval.start;
+
+    while (cursor < interval.end)
+    {
+      let next = cursor.plus(this.options.mode.interval);
+
+      if (this.options.mode.interval.months !== undefined)
+      {
+        next = cursor.endOf(`month`).plus({ days: 1 }).startOf(`day`);
+      }
+      else if (this.options.mode.interval.years !== undefined)
+      {
+        next = cursor.endOf(`year`).plus({ days: 1 }).startOf(`day`);
+      }
+
+      if (next > interval.end)
+      {
+        next = interval.end;
+      }
+
+      parts.push(Interval.fromDateTimes(cursor, next));
+      cursor = next;
+    }
+
+    return parts;
   }
 }
 
