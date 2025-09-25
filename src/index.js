@@ -1528,13 +1528,20 @@ class Chart
     }
 
     this.chartBody.addEventListener(`pointerdown`, (e) => {
-      if(e.target.UGLAGanttBarData === undefined)
+      let target = e.target;
+
+      if(!target.matches(`[data-gantt-bar-id]`))
+      {
+        target = target.closest(`[data-gantt-bar-id]`)
+      }
+
+      if(target === null || target.UGLAGanttBarData === undefined)
       {
         return;
       }
 
       this.#movingBarData.pointerIsDown = true;
-      this.#movingBarData.bar = e.target.UGLAGanttBarData;
+      this.#movingBarData.bar = target.UGLAGanttBarData;
 
       this.#movingBarData.startX = e.pageX - this.chartScroll.offsetLeft;
       this.#movingBarData.startY = e.pageY - this.chartBody.offsetTop;
