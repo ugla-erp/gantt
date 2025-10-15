@@ -1719,11 +1719,11 @@ class Chart
     {
       let next = cursor.plus(this.options.mode.interval);
 
-      if (this.options.mode.interval.months !== undefined)
+      if (this.options.mode.interval.months > 0)
       {
         next = cursor.endOf(`month`).plus({ days: 1 }).startOf(`day`);
       }
-      else if (this.options.mode.interval.years !== undefined)
+      else if (this.options.mode.interval.years > 0)
       {
         next = cursor.endOf(`year`).plus({ days: 1 }).startOf(`day`);
       }
